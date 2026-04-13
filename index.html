@@ -15,10 +15,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Montserrat', sans-serif; background-color: #f8f9fa; }
+        body { font-family: 'Montserrat', sans-serif; background-color: #f4f4f5; }
         .gold-bg { background: linear-gradient(135deg, #f09f0a 0%, #a67c00 100%); }
+        .gold-text { color: #f09f0a; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #f09f0a; border-radius: 10px; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body>
@@ -27,7 +29,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- CREDENCIAIS DO SEU SISTEMA ---
+        // --- CONFIGURAÇÃO SUPABASE ---
         const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
         const supabaseKey = 'sb_publishable_wKbs4gYVURdIR6Cafm8qFA_tUZZTIKo'; 
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
@@ -35,34 +37,37 @@
         // --- LOGIN ---
         const LoginPortal = ({ onLogin }) => {
             const [pass, setPass] = useState("");
+            const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
+
             return (
                 <div className="min-h-screen flex items-center justify-center bg-black p-4">
                     <div className="bg-[#111] p-10 rounded-[2.5rem] border border-[#f09f0a]/20 w-full max-w-md text-center shadow-2xl">
                         <div className="mb-6 flex justify-center">
-                            <div className="w-16 h-16 rounded-full bg-[#f09f0a] flex items-center justify-center">
-                                <i data-lucide="lock" className="text-black"></i>
+                            <div className="w-20 h-20 rounded-full bg-[#f09f0a] flex items-center justify-center shadow-[0_0_30px_rgba(240,159,10,0.3)]">
+                                <i data-lucide="shield-check" className="text-black w-10 h-10"></i>
                             </div>
                         </div>
-                        <h2 className="text-[#f09f0a] font-black italic uppercase text-2xl mb-8 tracking-tighter text-center leading-none">
-                            Rivi Silva<br/><span className="text-[10px] tracking-[0.4em] text-white/50">Admin Portal</span>
-                        </h2>
+                        <h2 className="text-[#f09f0a] font-black italic uppercase text-3xl mb-2 tracking-tighter">Rivi Silva</h2>
+                        <p className="text-white/40 text-[10px] tracking-[0.3em] uppercase mb-8">Acesso Restrito</p>
+                        
                         <input 
                             type="password" 
-                            placeholder="SENHA DE ACESSO" 
-                            className="w-full p-5 bg-black border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-[#f09f0a] transition-all"
+                            placeholder="DIGITE A SENHA" 
+                            className="w-full p-5 bg-zinc-900 border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-[#f09f0a] transition-all"
                             value={pass}
                             onChange={(e) => setPass(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                         />
                         <button 
-                            onClick={() => pass === "1234" ? onLogin() : alert("Senha Incorreta")}
-                            className="w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all"
+                            onClick={handleLogin}
+                            className="w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all shadow-lg"
                         > Entrar no Sistema </button>
                     </div>
                 </div>
             );
         };
 
-        // --- DASHBOARD PRINCIPAL ---
+        // --- DASHBOARD ---
         function Dashboard() {
             const [isAuth, setIsAuth] = useState(false);
             const [loading, setLoading] = useState(true);
@@ -72,7 +77,7 @@
             useEffect(() => {
                 if (isAuth) {
                     fetchData();
-                    const interval = setInterval(fetchData, 30000); 
+                    const interval = setInterval(fetchData, 60000); 
                     return () => clearInterval(interval);
                 }
             }, [isAuth, filterDate]);
@@ -97,105 +102,131 @@
 
             if (!isAuth) return <LoginPortal onLogin={() => setIsAuth(true)} />;
 
+            const stats = {
+                total: clientes.length,
+                confirmados: clientes.filter(c => c.presenca === 'Atendeu').length,
+                faltas: clientes.filter(c => c.presenca === 'Faltou').length,
+                financeiro: clientes.reduce((acc, c) => acc + Number(c.valor || 0), 0)
+            };
+
             return (
-                <div className="min-h-screen flex flex-col">
-                    {/* Header Luxo */}
-                    <header className="bg-white border-b border-gray-100 p-6 sticky top-0 z-10 shadow-sm">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h1 className="text-3xl font-black italic uppercase tracking-tighter">
-                                    Portal <span className="text-[#f09f0a]">Rivi Silva</span>
+                <div className="min-h-screen flex flex-col pb-20">
+                    <header className="bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="text-center md:text-left">
+                                <h1 className="text-2xl font-black italic uppercase tracking-tighter">
+                                    PORTAL <span className="text-[#f09f0a]">ADMIN</span>
                                 </h1>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Controle de Fluxo e Agendamentos</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Gestão de Fluxo | Rivi Silva</p>
                             </div>
-                            <div className="flex items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-100">
-                                <i data-lucide="calendar" className="text-[#f09f0a] w-4 h-4 ml-2"></i>
-                                <input 
-                                    type="date" 
-                                    className="bg-transparent border-none text-xs font-black outline-none uppercase"
-                                    value={filterDate}
-                                    onChange={(e) => setFilterDate(e.target.value)}
-                                />
+                            
+                            <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-2xl border border-gray-200">
+                                <div className="flex items-center gap-2 pl-3">
+                                    <i data-lucide="calendar" className="text-[#f09f0a] w-4 h-4"></i>
+                                    <input 
+                                        type="date" 
+                                        className="bg-transparent border-none text-xs font-black outline-none uppercase"
+                                        value={filterDate}
+                                        onChange={(e) => setFilterDate(e.target.value)}
+                                    />
+                                </div>
+                                <button onClick={fetchData} className="bg-white p-2 rounded-xl shadow-sm hover:text-[#f09f0a] transition-colors">
+                                    <i data-lucide="refresh-cw" className="w-4 h-4"></i>
+                                </button>
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-7xl mx-auto w-full p-4 md:p-8 space-y-6">
+                    <main className="max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
                         {/* Cards de Métricas */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex items-center justify-between group hover:border-[#f09f0a] transition-all">
-                                <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Agendamentos</p>
-                                    <p className="text-4xl font-black italic">{clientes.length}</p>
-                                </div>
-                                <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-[#f09f0a]">
-                                    <i data-lucide="users" className="w-7 h-7"></i>
-                                </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+                                <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Agendados</p>
+                                <p className="text-3xl font-black italic">{stats.total}</p>
                             </div>
-                            <div className="bg-black p-8 rounded-[2.5rem] shadow-xl flex items-center justify-between border-b-4 border-[#f09f0a]">
-                                <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Estimativa do Dia</p>
-                                    <p className="text-4xl font-black italic text-[#f09f0a]">
-                                        R$ {clientes.reduce((acc, c) => acc + Number(c.valor || 0), 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-                                    </p>
-                                </div>
-                                <div className="w-14 h-14 bg-[#f09f0a] rounded-2xl flex items-center justify-center text-black">
-                                    <i data-lucide="banknote" className="w-7 h-7"></i>
-                                </div>
+                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+                                <p className="text-[9px] font-black text-green-500 uppercase mb-1">Presenças</p>
+                                <p className="text-3xl font-black italic">{stats.confirmados}</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+                                <p className="text-[9px] font-black text-red-500 uppercase mb-1">Faltas</p>
+                                <p className="text-3xl font-black italic">{stats.faltas}</p>
+                            </div>
+                            <div className="bg-black p-6 rounded-[2rem] shadow-xl md:col-span-1 col-span-2">
+                                <p className="text-[9px] font-black text-[#f09f0a] uppercase mb-1">Receita Prevista</p>
+                                <p className="text-2xl font-black italic text-white">R$ {stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
 
-                        {/* Tabela Administrativa */}
-                        <div className="bg-white rounded-[3rem] shadow-2xl border border-gray-100 overflow-hidden">
-                            <div className="p-8 border-b border-gray-50 bg-gray-50/30 flex justify-between items-center">
-                                <h3 className="font-black italic uppercase tracking-tighter text-lg underline decoration-[#f09f0a] decoration-4">Fluxo de Hoje</h3>
-                                <button onClick={fetchData} className="p-2 hover:rotate-180 transition-all duration-500">
-                                    <i data-lucide="refresh-cw" className="w-5 h-5 text-gray-400"></i>
-                                </button>
+                        {/* Tabela de Fluxo */}
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden">
+                            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                                <h3 className="font-black italic uppercase tracking-tighter text-lg underline decoration-[#f09f0a] decoration-4 underline-offset-8">Lista de Atendimento</h3>
                             </div>
 
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
-                                    <thead className="bg-gray-50/50">
-                                        <tr className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
-                                            <th className="px-8 py-6">Horário</th>
-                                            <th className="px-8 py-6">Cliente</th>
-                                            <th className="px-8 py-6 text-center">Status Sinal</th>
-                                            <th className="px-8 py-6 text-center">Presença</th>
-                                            <th className="px-8 py-6 text-right">Valor</th>
+                                    <thead>
+                                        <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                            <th className="px-8 py-6 uppercase">Horário</th>
+                                            <th className="px-8 py-6 uppercase">Cliente</th>
+                                            <th className="px-8 py-6 text-center uppercase">Sinal</th>
+                                            <th className="px-8 py-6 text-center uppercase">Ações de Presença</th>
+                                            <th className="px-8 py-6 text-right uppercase">Valor</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {loading ? (
-                                            <tr><td colSpan="5" className="py-20 text-center text-gray-300 font-bold uppercase text-[10px] italic tracking-widest animate-pulse">Carregando dados...</td></tr>
+                                            <tr><td colSpan="5" className="py-20 text-center text-gray-300 font-bold uppercase text-[10px] italic tracking-widest animate-pulse">Sincronizando Banco de Dados...</td></tr>
                                         ) : clientes.length === 0 ? (
-                                            <tr><td colSpan="5" className="py-20 text-center text-gray-300 font-bold uppercase text-[10px] italic tracking-widest uppercase">Sem atendimentos para esta data</td></tr>
+                                            <tr><td colSpan="5" className="py-20 text-center text-gray-400 font-bold uppercase text-[10px] italic">Nenhum registro encontrado para hoje.</td></tr>
                                         ) : (
                                             clientes.map(c => (
-                                                <tr key={c.id} className="hover:bg-orange-50/30 transition-all group">
+                                                <tr key={c.id} className="hover:bg-gray-50/80 transition-all group">
                                                     <td className="px-8 py-6">
-                                                        <span className="bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs shadow-lg">{c.horario}</span>
+                                                        <span className="bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs shadow-md">{c.horario}</span>
                                                     </td>
                                                     <td className="px-8 py-6">
-                                                        <p className="font-black italic uppercase text-sm group-hover:text-[#f09f0a] transition-colors">{c.cliente_nome}</p>
-                                                        <p className="text-[10px] text-gray-400 font-bold">{c.telefone || 'SEM CONTATO'}</p>
+                                                        <div className="flex flex-col">
+                                                            <span className="font-black italic uppercase text-sm group-hover:text-[#f09f0a] transition-colors">{c.cliente_nome}</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{c.telefone || '(00) 00000-0000'}</span>
+                                                                {c.telefone && (
+                                                                    <a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" className="text-green-500 hover:scale-110 transition-transform">
+                                                                        <i data-lucide="message-circle" className="w-3 h-3"></i>
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td className="px-8 py-6 text-center">
                                                         <button 
                                                             onClick={() => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago')}
-                                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all shadow-sm border ${c.status === 'Sinal Pago' ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-gray-200 text-gray-400'}`}
+                                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all border ${c.status === 'Sinal Pago' ? 'bg-green-500 border-green-500 text-white shadow-lg' : 'bg-white border-gray-200 text-gray-400'}`}
                                                         >
-                                                            {c.status === 'Sinal Pago' ? 'Sinal Pago' : 'Pendente'}
+                                                            {c.status === 'Sinal Pago' ? 'Pago' : 'Pendente'}
                                                         </button>
                                                     </td>
                                                     <td className="px-8 py-6">
-                                                        <div className="flex justify-center gap-2">
-                                                            <button onClick={() => updateStatus(c.id, 'presenca', 'Atendeu')} title="Confirmar Presença" className={`p-2.5 rounded-xl transition-all ${c.presenca === 'Atendeu' ? 'bg-green-500 text-white shadow-lg shadow-green-200' : 'bg-gray-100 text-gray-300 hover:bg-gray-200'}`}><i data-lucide="user-check" className="w-4 h-4"></i></button>
-                                                            <button onClick={() => updateStatus(c.id, 'presenca', 'Faltou')} title="Marcar Falta" className={`p-2.5 rounded-xl transition-all ${c.presenca === 'Faltou' ? 'bg-red-500 text-white shadow-lg shadow-red-200' : 'bg-gray-100 text-gray-300 hover:bg-gray-200'}`}><i data-lucide="user-x" className="w-4 h-4"></i></button>
+                                                        <div className="flex justify-center gap-3">
+                                                            <button 
+                                                                onClick={() => updateStatus(c.id, 'presenca', 'Atendeu')} 
+                                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase ${c.presenca === 'Atendeu' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400 hover:bg-green-50 hover:text-green-600'}`}
+                                                            >
+                                                                <i data-lucide="check" className="w-3 h-3"></i> Chegou
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => updateStatus(c.id, 'presenca', 'Faltou')} 
+                                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase ${c.presenca === 'Faltou' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-600'}`}
+                                                            >
+                                                                <i data-lucide="x" className="w-3 h-3"></i> Faltou
+                                                            </button>
                                                         </div>
                                                     </td>
-                                                    <td className="px-8 py-6 text-right font-black italic text-[#f09f0a] text-lg">
-                                                        R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                                    <td className="px-8 py-6 text-right">
+                                                        <span className="font-black italic text-[#f09f0a] text-lg">
+                                                            R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                                                        </span>
                                                     </td>
                                                 </tr>
                                             ))
@@ -205,12 +236,18 @@
                             </div>
                         </div>
                     </main>
+                    
+                    {/* Rodapé Informativo */}
+                    <footer className="fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 p-4 text-center">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">© 2026 Rivi Silva Style - Sistema de Gestão Interna</p>
+                    </footer>
                 </div>
             );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<Dashboard />);
+        // Inicializa ícones lucide
         setTimeout(() => lucide.createIcons(), 500);
     </script>
 </body>
