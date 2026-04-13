@@ -20,7 +20,6 @@
         .gold-text { color: #f09f0a; }
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #f09f0a; border-radius: 10px; }
-        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body>
@@ -29,16 +28,13 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- CONFIGURAÇÃO SUPABASE ---
         const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
         const supabaseKey = 'sb_publishable_wKbs4gYVURdIR6Cafm8qFA_tUZZTIKo'; 
         const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-        // --- LOGIN ---
         const LoginPortal = ({ onLogin }) => {
             const [pass, setPass] = useState("");
             const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
-
             return (
                 <div className="min-h-screen flex items-center justify-center bg-black p-4">
                     <div className="bg-[#111] p-10 rounded-[2.5rem] border border-[#f09f0a]/20 w-full max-w-md text-center shadow-2xl">
@@ -48,51 +44,34 @@
                             </div>
                         </div>
                         <h2 className="text-[#f09f0a] font-black italic uppercase text-3xl mb-2 tracking-tighter">Rivi Silva</h2>
-                        <p className="text-white/40 text-[10px] tracking-[0.3em] uppercase mb-8">Acesso Restrito</p>
-                        
-                        <input 
-                            type="password" 
-                            placeholder="DIGITE A SENHA" 
-                            className="w-full p-5 bg-zinc-900 border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-[#f09f0a] transition-all"
-                            value={pass}
-                            onChange={(e) => setPass(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-                        />
-                        <button 
-                            onClick={handleLogin}
-                            className="w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl active:scale-95 transition-all shadow-lg"
-                        > Entrar no Sistema </button>
+                        <input type="password" placeholder="SENHA" className="w-full p-5 bg-zinc-900 border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-[#f09f0a]" value={pass} onChange={(e) => setPass(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleLogin()} />
+                        <button onClick={handleLogin} className="w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl"> Entrar </button>
                     </div>
                 </div>
             );
         };
 
-        // --- DASHBOARD ---
         function Dashboard() {
             const [isAuth, setIsAuth] = useState(false);
             const [loading, setLoading] = useState(true);
             const [clientes, setClientes] = useState([]);
             const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-            
-            // Estados para o Modal de Novo Agendamento
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [servicosDb, setServicosDb] = useState([]);
             const [servicosSelecionados, setServicosSelecionados] = useState([]);
-            const [novoAgendamento, setNovoAgendamento] = useState({
-                nome: "",
-                telefone: "",
-                data: new Date().toISOString().split('T')[0],
-                horario: "08:00",
-            });
+            const [novoAgendamento, setNovoAgendamento] = useState({ nome: "", telefone: "", data: new Date().toISOString().split('T')[0], horario: "08:00" });
 
             useEffect(() => {
                 if (isAuth) {
                     fetchData();
                     fetchServicos();
-                    const interval = setInterval(fetchData, 60000); 
-                    return () => clearInterval(interval);
                 }
             }, [isAuth, filterDate]);
+
+            // Garante que os ícones do Lucide carreguem quando o modal abrir
+            useEffect(() => {
+                if (isModalOpen) setTimeout(() => lucide.createIcons(), 100);
+            }, [isModalOpen]);
 
             async function fetchServicos() {
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
@@ -101,12 +80,7 @@
 
             async function fetchData() {
                 setLoading(true);
-                const { data, error } = await _supabase
-                    .from("agendamentos")
-                    .select("*")
-                    .eq("data_atendimento", filterDate)
-                    .order("horario", { ascending: true });
-                
+                const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
                 if (!error) setClientes(data || []);
                 setLoading(false);
                 setTimeout(() => lucide.createIcons(), 100);
@@ -119,40 +93,17 @@
 
             const toggleServico = (servico) => {
                 const isSelected = servicosSelecionados.some(s => s.nome === servico.nome);
-                if (isSelected) {
-                    setServicosSelecionados(servicosSelecionados.filter(s => s.nome !== servico.nome));
-                } else {
-                    setServicosSelecionados([...servicosSelecionados, servico]);
-                }
+                if (isSelected) setServicosSelecionados(servicosSelecionados.filter(s => s.nome !== servico.nome));
+                else setServicosSelecionados([...servicosSelecionados, servico]);
             };
 
             const totalValorNovo = servicosSelecionados.reduce((acc, s) => acc + (Number(s.preco) || 0), 0);
 
             const handleAddAgendamento = async () => {
                 if (!novoAgendamento.nome || servicosSelecionados.length === 0) return alert("Preencha o nome e selecione um serviço!");
-                
-                const payload = {
-                    cliente_nome: novoAgendamento.nome.toUpperCase(),
-                    telefone: novoAgendamento.telefone,
-                    data_atendimento: novoAgendamento.data,
-                    horario: novoAgendamento.horario,
-                    servico: servicosSelecionados.map(s => s.nome).join(", "),
-                    valor: totalValorNovo,
-                    status: "Aguardando",
-                    presenca: "Pendente"
-                };
-
+                const payload = { cliente_nome: novoAgendamento.nome.toUpperCase(), telefone: novoAgendamento.telefone, data_atendimento: novoAgendamento.data, horario: novoAgendamento.horario, servico: servicosSelecionados.map(s => s.nome).join(", "), valor: totalValorNovo, status: "Aguardando", presenca: "Pendente" };
                 const { error } = await _supabase.from("agendamentos").insert([payload]);
-                
-                if (!error) {
-                    setIsModalOpen(false);
-                    setServicosSelecionados([]);
-                    setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "" });
-                    fetchData();
-                    alert("Agendamento realizado!");
-                } else {
-                    alert("Erro ao agendar: " + error.message);
-                }
+                if (!error) { setIsModalOpen(false); setServicosSelecionados([]); setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "" }); fetchData(); }
             };
 
             if (!isAuth) return <LoginPortal onLogin={() => setIsAuth(true)} />;
@@ -160,7 +111,6 @@
             const stats = {
                 total: clientes.length,
                 confirmados: clientes.filter(c => c.presenca === 'Atendeu').length,
-                faltas: clientes.filter(c => c.presenca === 'Faltou').length,
                 financeiro: clientes.reduce((acc, c) => acc + Number(c.valor || 0), 0)
             };
 
@@ -168,177 +118,99 @@
                 <div className="min-h-screen flex flex-col pb-20 relative">
                     <header className="bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm">
                         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-                            <div className="text-center md:text-left">
-                                <h1 className="text-2xl font-black italic uppercase tracking-tighter">
-                                    PORTAL <span className="text-[#f09f0a]">ADMIN</span>
-                                </h1>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-[0.3em]">Gestão de Fluxo | Rivi Silva</p>
+                            <div>
+                                <h1 className="text-2xl font-black italic uppercase tracking-tighter">PORTAL <span className="text-[#f09f0a]">ADMIN</span></h1>
                             </div>
-                            
-                            <div className="flex flex-wrap justify-center items-center gap-4">
-                                <button 
-                                    onClick={() => setIsModalOpen(true)}
-                                    className="flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:scale-105 transition-all"
-                                >
+                            <div className="flex gap-4">
+                                <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all">
                                     <i data-lucide="plus" className="w-4 h-4"></i> Novo Agendamento
                                 </button>
-
-                                <div className="flex items-center gap-4 bg-gray-100 p-2 rounded-2xl border border-gray-200">
-                                    <div className="flex items-center gap-2 pl-3">
-                                        <i data-lucide="calendar" className="text-[#f09f0a] w-4 h-4"></i>
-                                        <input 
-                                            type="date" 
-                                            className="bg-transparent border-none text-xs font-black outline-none uppercase"
-                                            value={filterDate}
-                                            onChange={(e) => setFilterDate(e.target.value)}
-                                        />
-                                    </div>
-                                    <button onClick={fetchData} className="bg-white p-2 rounded-xl shadow-sm hover:text-[#f09f0a] transition-colors">
-                                        <i data-lucide="refresh-cw" className="w-4 h-4"></i>
-                                    </button>
-                                </div>
+                                <input type="date" className="bg-gray-100 p-3 rounded-2xl text-xs font-black outline-none uppercase" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-7xl mx-auto w-full p-4 md:p-8 space-y-8">
-                        {/* Cards de Métricas */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <main className="max-w-7xl mx-auto w-full p-8 space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                                <p className="text-[9px] font-black text-gray-400 uppercase mb-1">Agendados</p>
+                                <p className="text-[9px] font-black text-gray-400 uppercase">Agendados</p>
                                 <p className="text-3xl font-black italic">{stats.total}</p>
                             </div>
-                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                                <p className="text-[9px] font-black text-green-500 uppercase mb-1">Presenças</p>
-                                <p className="text-3xl font-black italic">{stats.confirmados}</p>
-                            </div>
-                            <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                                <p className="text-[9px] font-black text-red-500 uppercase mb-1">Faltas</p>
-                                <p className="text-3xl font-black italic">{stats.faltas}</p>
-                            </div>
-                            <div className="bg-black p-6 rounded-[2rem] shadow-xl md:col-span-1 col-span-2">
-                                <p className="text-[9px] font-black text-[#f09f0a] uppercase mb-1">Receita Prevista</p>
-                                <p className="text-2xl font-black italic text-white">R$ {stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                            <div className="bg-black p-6 rounded-[2rem] shadow-xl text-white">
+                                <p className="text-[9px] font-black text-[#f09f0a] uppercase">Receita Prevista</p>
+                                <p className="text-2xl font-black italic">R$ {stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
 
-                        {/* Tabela de Fluxo */}
                         <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-hidden">
-                            <div className="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                                <h3 className="font-black italic uppercase tracking-tighter text-lg underline decoration-[#f09f0a] decoration-4 underline-offset-8">Lista de Atendimento</h3>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                                            <th className="px-8 py-6 uppercase">Horário</th>
-                                            <th className="px-8 py-6 uppercase">Cliente</th>
-                                            <th className="px-8 py-6 text-center uppercase">Sinal</th>
-                                            <th className="px-8 py-6 text-center uppercase">Ações de Presença</th>
-                                            <th className="px-8 py-6 text-right uppercase">Valor</th>
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase">
+                                    <tr>
+                                        <th className="px-8 py-6">Horário</th>
+                                        <th className="px-8 py-6">Cliente</th>
+                                        <th className="px-8 py-6 text-center">Status</th>
+                                        <th className="px-8 py-6 text-right">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {clientes.map(c => (
+                                        <tr key={c.id} className="hover:bg-gray-50/80 transition-all">
+                                            <td className="px-8 py-6"><span className="bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs">{c.horario}</span></td>
+                                            <td className="px-8 py-6 font-black italic uppercase text-sm">{c.cliente_nome}</td>
+                                            <td className="px-8 py-6 text-center">
+                                                <button onClick={() => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago')} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>{c.status === 'Sinal Pago' ? 'Pago' : 'Pendente'}</button>
+                                            </td>
+                                            <td className="px-8 py-6 text-right font-black italic text-[#f09f0a]">R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50">
-                                        {loading ? (
-                                            <tr><td colSpan="5" className="py-20 text-center text-gray-300 font-bold uppercase text-[10px] italic tracking-widest animate-pulse">Sincronizando...</td></tr>
-                                        ) : clientes.length === 0 ? (
-                                            <tr><td colSpan="5" className="py-20 text-center text-gray-400 font-bold uppercase text-[10px] italic">Nenhum registro encontrado.</td></tr>
-                                        ) : (
-                                            clientes.map(c => (
-                                                <tr key={c.id} className="hover:bg-gray-50/80 transition-all group">
-                                                    <td className="px-8 py-6">
-                                                        <span className="bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs shadow-md">{c.horario}</span>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex flex-col">
-                                                            <span className="font-black italic uppercase text-sm group-hover:text-[#f09f0a] transition-colors">{c.cliente_nome}</span>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{c.telefone || '(00) 00000-0000'}</span>
-                                                                {c.telefone && (
-                                                                    <a href={`https://wa.me/55${c.telefone.replace(/\D/g,'')}`} target="_blank" className="text-green-500">
-                                                                        <i data-lucide="message-circle" className="w-3 h-3"></i>
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 text-center">
-                                                        <button 
-                                                            onClick={() => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago')}
-                                                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all border ${c.status === 'Sinal Pago' ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-200 text-gray-400'}`}
-                                                        >
-                                                            {c.status === 'Sinal Pago' ? 'Pago' : 'Pendente'}
-                                                        </button>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex justify-center gap-3">
-                                                            <button 
-                                                                onClick={() => updateStatus(c.id, 'presenca', 'Atendeu')} 
-                                                                className={`px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase ${c.presenca === 'Atendeu' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}
-                                                            >Chegou</button>
-                                                            <button 
-                                                                onClick={() => updateStatus(c.id, 'presenca', 'Faltou')} 
-                                                                className={`px-4 py-2 rounded-xl transition-all font-black text-[9px] uppercase ${c.presenca === 'Faltou' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-400'}`}
-                                                            >Faltou</button>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6 text-right">
-                                                        <span className="font-black italic text-[#f09f0a] text-lg">R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </main>
 
-                    {/* MODAL DE NOVO AGENDAMENTO */}
+                    {/* MODAL COM BOTÃO DE VOLTAR/FECHAR */}
                     {isModalOpen && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                            <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#f09f0a] animate-in zoom-in duration-300">
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                            <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#f09f0a] relative animate-in zoom-in duration-300">
+                                
+                                {/* BOTÃO FECHAR (X) */}
+                                <button 
+                                    onClick={() => setIsModalOpen(false)} 
+                                    className="absolute top-6 right-6 p-2 bg-gray-100 rounded-full text-gray-400 hover:text-black hover:bg-gray-200 transition-all z-50"
+                                >
+                                    <i data-lucide="x" className="w-5 h-5"></i>
+                                </button>
+
                                 <div className="p-8 space-y-6">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-2xl font-black italic uppercase tracking-tighter text-black">Novo <span className="text-[#f09f0a]">Cadastro</span></h2>
-                                        <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black"><i data-lucide="x"></i></button>
-                                    </div>
+                                    <h2 className="text-2xl font-black italic uppercase tracking-tighter text-black">Novo <span className="text-[#f09f0a]">Cadastro</span></h2>
 
                                     <div className="space-y-4">
+                                        <input type="text" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" placeholder="NOME DO CLIENTE" value={novoAgendamento.nome} onChange={(e) => setNovoAgendamento({...novoAgendamento, nome: e.target.value.toUpperCase()})} />
+                                        <input type="tel" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" placeholder="WHATSAPP" value={novoAgendamento.telefone} onChange={(e) => setNovoAgendamento({...novoAgendamento, telefone: e.target.value})} />
+                                        
                                         <div className="grid grid-cols-2 gap-3">
-                                            <input type="text" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" placeholder="NOME DO CLIENTE" value={novoAgendamento.nome} onChange={(e) => setNovoAgendamento({...novoAgendamento, nome: e.target.value.toUpperCase()})} />
-                                            <input type="tel" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" placeholder="WHATSAPP" value={novoAgendamento.telefone} onChange={(e) => setNovoAgendamento({...novoAgendamento, telefone: e.target.value})} />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <input type="date" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" value={novoAgendamento.data} onChange={(e) => setNovoAgendamento({...novoAgendamento, data: e.target.value})} />
-                                            <input type="time" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]" value={novoAgendamento.horario} onChange={(e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value})} />
+                                            <input type="date" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black" value={novoAgendamento.data} onChange={(e) => setNovoAgendamento({...novoAgendamento, data: e.target.value})} />
+                                            <input type="time" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black" value={novoAgendamento.horario} onChange={(e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value})} />
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2">Escolha os Procedimentos</label>
-                                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scroll">
-                                                {servicosDb.map(s => {
-                                                    const isSel = servicosSelecionados.some(sel => sel.nome === s.nome);
-                                                    return (
-                                                        <button key={s.nome} onClick={() => toggleServico(s)} className={`p-4 rounded-xl text-[9px] font-black uppercase text-left transition-all border flex justify-between items-center ${isSel ? 'bg-orange-50 border-[#f09f0a] text-[#f09f0a]' : 'bg-gray-50 text-gray-400 border-gray-100'}`}>
-                                                            <span className="truncate">{s.nome}</span>
-                                                            {isSel && <i data-lucide="check" className="w-3 h-3"></i>}
-                                                        </button>
-                                                    );
-                                                })}
+                                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2">Procedimentos</label>
+                                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scroll pr-1">
+                                                {servicosDb.map(s => (
+                                                    <button key={s.nome} onClick={() => toggleServico(s)} className={`p-4 rounded-xl text-[9px] font-black uppercase text-left border ${servicosSelecionados.some(sel => sel.nome === s.nome) ? 'bg-orange-50 border-[#f09f0a] text-[#f09f0a]' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>{s.nome}</button>
+                                                ))}
                                             </div>
                                         </div>
 
-                                        <div className="p-4 rounded-2xl flex justify-between items-center border bg-black text-white">
-                                            <span className="text-[9px] font-black uppercase text-[#f09f0a]">Total a Pagar:</span>
+                                        <div className="p-4 rounded-2xl flex justify-between items-center bg-black text-white">
+                                            <span className="text-[9px] font-black uppercase text-[#f09f0a]">Total:</span>
                                             <span className="font-black italic text-xl">R$ {totalValorNovo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
                                         </div>
 
-                                        <button onClick={handleAddAgendamento} className="w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl active:scale-95 transition-all">
-                                            Confirmar Agendamento
-                                        </button>
+                                        <button onClick={handleAddAgendamento} className="w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl">Confirmar</button>
+                                        
+                                        {/* BOTÃO SECUNDÁRIO PARA VOLTAR */}
+                                        <button onClick={() => setIsModalOpen(false)} className="w-full py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-black transition-colors">Voltar para Agenda</button>
                                     </div>
                                 </div>
                             </div>
@@ -346,7 +218,7 @@
                     )}
                     
                     <footer className="fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 p-4 text-center z-10">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">© 2026 Rivi Silva Style - Sistema de Gestão Interna</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]">© 2026 Rivi Silva Style</p>
                     </footer>
                 </div>
             );
