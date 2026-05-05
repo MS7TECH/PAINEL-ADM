@@ -56,6 +56,7 @@
             const [isAuth, setIsAuth] = useState(false);
             const [loading, setLoading] = useState(true);
             const [clientes, setClientes] = useState([]);
+            const [searchTerm, setSearchTerm] = useState(""); // Nova função de pesquisa
             const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [servicosDb, setServicosDb] = useState([]);
@@ -70,10 +71,8 @@
             }, [isAuth, filterDate]);
 
             useEffect(() => {
-                if (isModalOpen) {
-                    setTimeout(() => lucide.createIcons(), 50);
-                }
-            }, [isModalOpen]);
+                lucide.createIcons();
+            }, [clientes, isModalOpen]);
 
             async function fetchServicos() {
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
@@ -85,12 +84,19 @@
                 const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
                 if (!error) setClientes(data || []);
                 setLoading(false);
-                setTimeout(() => lucide.createIcons(), 100);
             }
 
             async function updateStatus(id, campo, valor) {
                 const { error } = await _supabase.from("agendamentos").update({ [campo]: valor }).eq("id", id);
                 if (!error) fetchData();
+            }
+
+            // Nova Função de Excluir
+            async function deleteAgendamento(id) {
+                if(confirm("Deseja realmente excluir este agendamento?")) {
+                    const { error } = await _supabase.from("agendamentos").delete().eq("id", id);
+                    if (!error) fetchData();
+                }
             }
 
             const toggleServico = (servico) => {
@@ -108,20 +114,35 @@
                 if (!error) { setIsModalOpen(false); setServicosSelecionados([]); setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "" }); fetchData(); }
             };
 
+            // Lógica do Filtro de Pesquisa
+            const clientesFiltrados = clientes.filter(c => 
+                c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
             if (!isAuth) return <LoginPortal onLogin={() => setIsAuth(true)} />;
 
             const stats = {
-                total: clientes.length,
-                confirmados: clientes.filter(c => c.presenca === 'Atendeu').length,
-                financeiro: clientes.reduce((acc, c) => acc + Number(c.valor || 0), 0)
+                total: clientesFiltrados.length,
+                financeiro: clientesFiltrados.reduce((acc, c) => acc + Number(c.valor || 0), 0)
             };
 
             return (
                 <div className="min-h-screen flex flex-col pb-20 relative">
                     <header className="bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm">
                         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-                            <h1 className="text-2xl font-black italic uppercase tracking-tighter">PORTAL <span className="text-[#f09f0a]">ADMIN</span></h1>
-                            <div className="flex gap-4">
+                            <h1 className="text-2xl font-black italic uppercase tracking-tighter text-black">PORTAL <span className="text-[#f09f0a]">ADMIN</span></h1>
+                            <div className="flex flex-wrap justify-center gap-4">
+                                {/* BARRA DE PESQUISA ADICIONADA */}
+                                <div className="relative">
+                                    <i data-lucide="search" className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                    <input 
+                                        type="text" 
+                                        placeholder="PESQUISAR CLIENTE..." 
+                                        className="bg-gray-100 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black outline-none uppercase w-64 focus:border-[#f09f0a] border border-transparent"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
                                 <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all">
                                     <i data-lucide="plus" className="w-4 h-4"></i> Novo Agendamento
                                 </button>
@@ -131,43 +152,54 @@
                     </header>
 
                     <main className="max-w-7xl mx-auto w-full p-8 space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-                                <p className="text-[9px] font-black text-gray-400 uppercase">Agendados</p>
+                                <p className="text-[9px] font-black text-gray-400 uppercase">Agendados no filtro</p>
                                 <p className="text-3xl font-black italic">{stats.total}</p>
                             </div>
                             <div className="bg-black p-6 rounded-[2rem] shadow-xl text-white">
-                                <p className="text-[9px] font-black text-[#f09f0a] uppercase">Receita Prevista</p>
+                                <p className="text-[9px] font-black text-[#f09f0a] uppercase">Receita Prevista (Filtro)</p>
                                 <p className="text-2xl font-black italic">R$ {stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
 
-                        {/* TABELA COM SUPORTE A ARRASTAR/SCROLL NO MOBILE */}
                         <div className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll">
-                            <table className="w-full text-left min-w-[650px]">
+                            <table className="w-full text-left min-w-[750px]">
                                 <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                     <tr>
                                         <th className="px-8 py-6">Horário</th>
                                         <th className="px-8 py-6">Cliente</th>
                                         <th className="px-8 py-6 text-center">Status</th>
                                         <th className="px-8 py-6 text-right">Valor</th>
+                                        <th className="px-8 py-6 text-center">Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {clientes.map(c => (
-                                        <tr key={c.id} className="hover:bg-gray-50/80 transition-all">
+                                    {clientesFiltrados.map(c => (
+                                        <tr key={c.id} className="hover:bg-gray-50/80 transition-all group">
                                             <td className="px-8 py-6"><span className="bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs">{c.horario}</span></td>
-                                            <td className="px-8 py-6 font-black italic uppercase text-sm">{c.cliente_nome}</td>
+                                            <td className="px-8 py-6 font-black italic uppercase text-sm">
+                                                {c.cliente_nome}
+                                                <p className="text-[8px] text-gray-400 not-italic font-bold">{c.servico}</p>
+                                            </td>
                                             <td className="px-8 py-6 text-center">
                                                 <button onClick={() => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago')} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
                                                     {c.status === 'Sinal Pago' ? 'Pago' : 'Pendente'}
                                                 </button>
                                             </td>
                                             <td className="px-8 py-6 text-right font-black italic text-[#f09f0a]">R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                                            <td className="px-8 py-6 text-center">
+                                                <button onClick={() => deleteAgendamento(c.id)} className="p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all">
+                                                    <i data-lucide="trash-2" className="w-4 h-4"></i>
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
+                            {clientesFiltrados.length === 0 && (
+                                <div className="p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest">Nenhum agendamento encontrado</div>
+                            )}
                         </div>
                     </main>
 
