@@ -26,7 +26,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-type="module">
         const { useState, useEffect } = React;
 
         const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
@@ -187,7 +187,6 @@
                                             <td className="px-8 py-6 text-right font-black italic text-[#f09f0a]">R$ {Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                                             <td className="px-8 py-6 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    {/* FUNÇÃO VER CONTATO ADICIONADA AQUI */}
                                                     <a 
                                                         href={`https://wa.me/55${c.telefone?.replace(/\D/g, '')}`} 
                                                         target="_blank"
