@@ -26,7 +26,7 @@
     <div id="root"></div>
 
     <script>
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useCallback } = React;
         const h = React.createElement;
 
         const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
@@ -37,29 +37,31 @@
             const [pass, setPass] = useState("");
             const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
             
-            return h("div", { className: "min-h-screen flex items-center justify-center bg-black p-4" },
-                h("div", { className: "bg-[#111] p-10 rounded-[2.5rem] border border-[#f09f0a]/20 w-full max-w-md text-center shadow-2xl" },
+            return h("div", { className: "min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-4" },
+                h("div", { className: "bg-black p-10 rounded-[2.5rem] border border-white/10 w-full max-w-md text-center shadow-2xl" },
                     h("div", { className: "mb-6 flex justify-center" },
-                        h("div", { className: "w-20 h-20 rounded-full bg-[#f09f0a] flex items-center justify-center shadow-[0_0_30px_rgba(240,159,10,0.3)]" },
-                            h("i", { "data-lucide": "shield-check", className: "text-black w-10 h-10" })
+                        h("div", { className: "w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)]" },
+                            h("i", { "data-lucide": "shield-check", className: "text-white w-10 h-10" })
                         )
                     ),
-                    h("h2", { className: "text-[#f09f0a] font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
+                    h("h2", { className: "text-white font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
+                    h("p", { className: "text-orange-200 text-[10px] font-black uppercase mb-6 tracking-widest" }, "Portal de Administração"),
                     h("input", { 
                         type: "password", 
                         placeholder: "DIGITE A SENHA", 
-                        className: "w-full p-5 bg-zinc-900 border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-[#f09f0a]", 
+                        className: "w-full p-5 bg-zinc-900 border border-zinc-800 rounded-2xl text-white text-center mb-6 outline-none focus:border-orange-500", 
                         value: pass, 
                         onChange: (e) => setPass(e.target.value), 
                         onKeyPress: (e) => e.key === 'Enter' && handleLogin() 
                     }),
-                    h("button", { onClick: handleLogin, className: "w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl" }, "Entrar")
+                    h("button", { onClick: handleLogin, className: "w-full py-5 bg-white text-orange-600 font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-orange-50 transition-all shadow-lg" }, "Entrar")
                 )
             );
         };
 
         function Dashboard() {
             const [isAuth, setIsAuth] = useState(false);
+            const [currentTab, setCurrentTab] = useState("agendamentos"); // "agendamentos" ou "agenda_config"
             const [loading, setLoading] = useState(true);
             const [clientes, setClientes] = useState([]);
             const [searchTerm, setSearchTerm] = useState("");
@@ -69,16 +71,67 @@
             const [servicosSelecionados, setServicosSelecionados] = useState([]);
             const [novoAgendamento, setNovoAgendamento] = useState({ nome: "", telefone: "", data: new Date().toISOString().split('T')[0], horario: "08:00" });
 
+            // Estados adicionados da configuração da Agenda
+            const [viewDate, setViewDate] = useState(new Date());
+            const [bloqueios, setBloqueios] = useState([]);
+            const [mesesLiberados, setMesesLiberados] = useState([]);
+            const [excecoes, setExcecoes] = useState({});
+            const [config, setConfig] = useState({ inicio: '09:00', fim: '18:00', intervalo: 40 });
+            const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+            const [selectedDateISO, setSelectedDateISO] = useState(null);
+            const [tempInicio, setTempInicio] = useState('');
+            const [tempFim, setTempFim] = useState('');
+
+            // Carregamento de dados adicionais da agenda configurável
+            const fetchAgendaConfigData = useCallback(async () => {
+                try {
+                    setLoading(true);
+                    const { data: bData } = await _supabase.from('agenda_bloqueada').select('data_interditada');
+                    if (bData) setBloqueios(bData.map(item => item.data_interditada));
+
+                    const { data: mData } = await _supabase.from('meses_liberados').select('mes_ano, liberado');
+                    if (mData) {
+                        setMesesLiberados(mData.filter(m => m.liberado === true).map(m => m.mes_ano));
+                    }
+
+                    const { data: cData } = await _supabase.from('agenda_config').select('*').eq('id', 1).maybeSingle();
+                    if (cData) {
+                        setConfig({ 
+                            inicio: cData.hora_inicio.slice(0, 5), 
+                            fim: cData.hora_fim.slice(0, 5), 
+                            intervalo: cData.intervalo_minutos 
+                        });
+                    }
+
+                    const { data: eData } = await _supabase.from('agenda_excecoes').select('*');
+                    if (eData) {
+                        const map = {};
+                        eData.forEach(ex => {
+                            map[ex.data] = { 
+                                inicio: ex.hora_inicio.slice(0, 5), 
+                                fim: ex.hora_fim.slice(0, 5) 
+                            };
+                        });
+                        setExcecoes(map);
+                    }
+                } catch (err) { 
+                    console.error("Erro geral da agenda:", err); 
+                } finally {
+                    setLoading(false);
+                }
+            }, []);
+
             useEffect(() => {
                 if (isAuth) {
                     fetchData();
                     fetchServicos();
+                    fetchAgendaConfigData();
                 }
-            }, [isAuth, filterDate]);
+            }, [isAuth, filterDate, fetchAgendaConfigData]);
 
             useEffect(() => {
                 lucide.createIcons();
-            }, [clientes, isModalOpen, isAuth]);
+            }, [clientes, isModalOpen, isConfigModalOpen, isAuth, currentTab, viewDate, mesesLiberados, bloqueios, excecoes]);
 
             async function fetchServicos() {
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
@@ -119,6 +172,104 @@
                 if (!error) { setIsModalOpen(false); setServicosSelecionados([]); setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "" }); fetchData(); }
             };
 
+            // Handlers adiconais do controle de Agenda
+            const abrirConfigModal = (dateISO) => {
+                setSelectedDateISO(dateISO);
+                const atual = excecoes[dateISO] || config;
+                setTempInicio(atual.inicio);
+                setTempFim(atual.fim);
+                setIsConfigModalOpen(true);
+            };
+
+            const salvarExcecao = async () => {
+                if (!selectedDateISO) return;
+                setLoading(true);
+                
+                const { error } = await _supabase.from('agenda_excecoes').upsert({
+                    data: selectedDateISO,
+                    hora_inicio: tempInicio,
+                    hora_fim: tempFim
+                }, { onConflict: 'data' });
+
+                if (!error) {
+                    setExcecoes(prev => ({ ...prev, [selectedDateISO]: { inicio: tempInicio, fim: tempFim } }));
+                    setIsConfigModalOpen(false);
+                } else {
+                    console.error(error);
+                    alert("Erro ao salvar horário especial.");
+                }
+                setLoading(false);
+            };
+
+            const toggleBloqueio = async (dateStr) => {
+                const jaBloqueado = bloqueios.includes(dateStr);
+                
+                if (jaBloqueado) {
+                    setBloqueios(prev => prev.filter(d => d !== dateStr));
+                    const { error } = await _supabase.from('agenda_bloqueada').delete().eq('data_intercitada', dateStr);
+                    if (error) {
+                        const { error: errOld } = await _supabase.from('agenda_bloqueada').delete().eq('data_interditada', dateStr);
+                        if (errOld) console.error("Erro ao desbloquear:", errOld);
+                    }
+                } else {
+                    setBloqueios(prev => [...prev, dateStr]);
+                    const { error } = await _supabase.from('agenda_bloqueada').insert([{ data_interditada: dateStr }]);
+                    if (error) console.error("Erro ao bloquear:", error);
+                }
+            };
+
+            const renderMonth = (date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const mesAnoKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+                const isLiberado = mesesLiberados.includes(mesAnoKey);
+                const days = new Date(year, month + 1, 0).getDate();
+                const firstDay = new Date(year, month, 1).getDay();
+                const monthName = date.toLocaleString('pt-BR', { month: 'long' });
+
+                return h("div", { className: `bg-white p-6 rounded-[2.5rem] border-2 shadow-sm flex-1 transition-all ${isLiberado ? 'border-[#f09f0a]/30' : 'border-zinc-100 opacity-80'}` },
+                    h("div", { className: "flex justify-between items-center mb-6 border-b border-zinc-100 pb-4" },
+                        h("h3", { className: "font-black text-zinc-900 uppercase tracking-[0.2em] text-sm" }, `${monthName} ${year}`),
+                        h("button", {
+                            disabled: loading,
+                            onClick: async () => {
+                                const novoStatus = !isLiberado;
+                                setMesesLiberados(prev => novoStatus ? [...prev, mesAnoKey] : prev.filter(m => m !== mesAnoKey));
+                                
+                                const { error } = await _supabase.from('meses_liberados').upsert(
+                                    { mes_ano: mesAnoKey, liberado: novoStatus },
+                                    { onConflict: 'mes_ano' }
+                                );
+                                if (error) { console.error(error); fetchAgendaConfigData(); }
+                            },
+                            className: `flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-sm transition-all ${isLiberado ? 'bg-[#f09f0a] text-black' : 'bg-zinc-200 text-zinc-500'}`
+                        }, isLiberado ? h("i", { "data-lucide": "unlock", className: "w-3.5 h-3.5" }) : h("i", { "data-lucide": "lock", className: "w-3.5 h-3.5" }), isLiberado ? 'Aberto' : 'Trancado')
+                    ),
+                    h("div", { className: "grid grid-cols-7 gap-1 text-center mb-4 text-[10px] font-bold text-zinc-400" },
+                        ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map((d, i) => h("div", { key: i }, d))
+                    ),
+                    h("div", { className: `grid grid-cols-7 gap-3 ${!isLiberado ? 'pointer-events-none grayscale' : ''}` },
+                        Array(firstDay).fill(null).map((_, i) => h("div", { key: `empty-${i}` })),
+                        Array.from({ length: days }).map((_, i) => {
+                            const dia = i + 1;
+                            const dataISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                            const isBlocked = bloqueios.includes(dataISO);
+                            const temExcecao = excecoes[dataISO];
+
+                            return h("button", {
+                                key: dia,
+                                onClick: () => toggleBloqueio(dataISO),
+                                onDoubleClick: () => abrirConfigModal(dataISO),
+                                className: `h-12 rounded-2xl flex flex-col items-center justify-center text-sm font-bold transition-all border-2 relative
+                                    ${isBlocked ? 'bg-red-500 text-white border-red-600 shadow-lg' : 
+                                    temExcecao ? 'bg-amber-50 text-[#f09f0a] border-[#f09f0a]' : 
+                                    'bg-zinc-50 text-zinc-900 border-zinc-100 hover:border-[#f09f0a]'}`
+                            }, dia, temExcecao && !isBlocked && h("div", { className: "absolute -top-1 -right-1 w-3 h-3 bg-[#f09f0a] rounded-full border-2 border-white" }))
+                        })
+                    )
+                );
+            };
+
             const clientesFiltrados = clientes.filter(c => 
                 c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
             );
@@ -131,10 +282,24 @@
             };
 
             return h("div", { className: "min-h-screen flex flex-col pb-20 relative" },
+                // HEADER DO PORTAL
                 h("header", { className: "bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm" },
                     h("div", { className: "max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6" },
-                        h("h1", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, "PORTAL ", h("span", { className: "text-[#f09f0a]" }, "ADMIN")),
-                        h("div", { className: "flex flex-wrap justify-center gap-4" },
+                        h("div", { className: "flex flex-col md:flex-row items-center gap-6" },
+                            h("h1", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, "PORTAL ", h("span", { className: "text-[#f09f0a]" }, "ADMIN")),
+                            // NAV TABS PARA ALTERNAR ABAS
+                            h("div", { className: "flex bg-gray-100 p-1 rounded-xl border border-gray-200" },
+                                h("button", { 
+                                    onClick: () => setCurrentTab("agendamentos"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agendamentos" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Agendamentos"),
+                                h("button", { 
+                                    onClick: () => setCurrentTab("agenda_config"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agenda_config" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Configurar Agenda")
+                            )
+                        ),
+                        currentTab === "agendamentos" && h("div", { className: "flex flex-wrap justify-center gap-4" },
                             h("div", { className: "relative" },
                                 h("i", { "data-lucide": "search", className: "w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" }),
                                 h("input", { 
@@ -152,61 +317,120 @@
                         )
                     )
                 ),
+
+                // CONTEÚDO DINÂMICO BASEADO NA ABA SELECIONADA
                 h("main", { className: "max-w-7xl mx-auto w-full p-8 space-y-8" },
-                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                        h("div", { className: "bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100" },
-                            h("p", { className: "text-[9px] font-black text-gray-400 uppercase" }, "Agendados no filtro"),
-                            h("p", { className: "text-3xl font-black italic" }, stats.total)
-                        ),
-                        h("div", { className: "bg-black p-6 rounded-[2rem] shadow-xl text-white" },
-                            h("p", { className: "text-[9px] font-black text-[#f09f0a] uppercase" }, "Receita Prevista (Filtro)"),
-                            h("p", { className: "text-2xl font-black italic" }, `R$ ${stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
-                        )
-                    ),
-                    h("div", { className: "bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll" },
-                        h("table", { className: "w-full text-left min-w-[750px]" },
-                            h("thead", { className: "bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest" },
-                                h("tr", null,
-                                    h("th", { className: "px-8 py-6" }, "Horário"),
-                                    h("th", { className: "px-8 py-6" }, "Cliente"),
-                                    h("th", { className: "px-8 py-6 text-center" }, "Status"),
-                                    h("th", { className: "px-8 py-6 text-right" }, "Valor"),
-                                    h("th", { className: "px-8 py-6 text-center" }, "Ações")
-                                )
+                    currentTab === "agendamentos" ? [
+                        h("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                            h("div", { className: "bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100" },
+                                h("p", { className: "text-[9px] font-black text-gray-400 uppercase" }, "Agendados no filtro"),
+                                h("p", { className: "text-3xl font-black italic" }, stats.total)
                             ),
-                            h("tbody", { className: "divide-y divide-gray-50" },
-                                clientesFiltrados.map(c => h("tr", { key: c.id, className: "hover:bg-gray-50/80 transition-all group" },
-                                    h("td", { className: "px-8 py-6" }, h("span", { className: "bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
-                                    h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
-                                        c.cliente_nome,
-                                        h("p", { className: "text-[8px] text-gray-400 not-italic font-bold" }, c.servico)
-                                    ),
-                                    h("td", { className: "px-8 py-6 text-center" }, 
-                                        h("button", { 
-                                            onClick: () => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago'),
-                                            className: `px-4 py-2 rounded-xl text-[9px] font-black uppercase ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`
-                                        }, c.status === 'Sinal Pago' ? 'Pago' : 'Pendente')
-                                    ),
-                                    h("td", { className: "px-8 py-6 text-right font-black italic text-[#f09f0a]" }, `R$ ${Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`),
-                                    h("td", { className: "px-8 py-6 text-center" }, 
-                                        h("div", { className: "flex justify-center gap-2" },
-                                            h("a", { 
-                                                href: `https://wa.me/55${c.telefone?.replace(/\D/g, '')}`, 
-                                                target: "_blank",
-                                                className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all",
-                                                title: "Ver Contato"
-                                            }, h("i", { "data-lucide": "message-circle", className: "w-4 h-4" })),
-                                            h("button", { onClick: () => deleteAgendamento(c.id), className: "p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" }, 
-                                                h("i", { "data-lucide": "trash-2", className: "w-4 h-4" })
+                            h("div", { className: "bg-black p-6 rounded-[2rem] shadow-xl text-white" },
+                                h("p", { className: "text-[9px] font-black text-[#f09f0a] uppercase" }, "Receita Prevista (Filtro)"),
+                                h("p", { className: "text-2xl font-black italic" }, `R$ ${stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
+                            )
+                        ),
+                        h("div", { className: "bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll" },
+                            h("table", { className: "w-full text-left min-w-[750px]" },
+                                h("thead", { className: "bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest" },
+                                    h("tr", null,
+                                        h("th", { className: "px-8 py-6" }, "Horário"),
+                                        h("th", { className: "px-8 py-6" }, "Cliente"),
+                                        h("th", { className: "px-8 py-6 text-center" }, "Status"),
+                                        h("th", { className: "px-8 py-6 text-right" }, "Valor"),
+                                        h("th", { className: "px-8 py-6 text-center" }, "Ações")
+                                    )
+                                ),
+                                h("tbody", { className: "divide-y divide-gray-50" },
+                                    clientesFiltrados.map(c => h("tr", { key: c.id, className: "hover:bg-gray-50/80 transition-all group" },
+                                        h("td", { className: "px-8 py-6" }, h("span", { className: "bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
+                                        h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
+                                            c.cliente_nome,
+                                            h("p", { className: "text-[8px] text-gray-400 not-italic font-bold" }, c.servico)
+                                        ),
+                                        h("td", { className: "px-8 py-6 text-center" }, 
+                                            h("button", { 
+                                                onClick: () => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago'),
+                                                className: `px-4 py-2 rounded-xl text-[9px] font-black uppercase ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`
+                                            }, c.status === 'Sinal Pago' ? 'Pago' : 'Pendente')
+                                        ),
+                                        h("td", { className: "px-8 py-6 text-right font-black italic text-[#f09f0a]" }, `R$ ${Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`),
+                                        h("td", { className: "px-8 py-6 text-center" }, 
+                                            h("div", { className: "flex justify-center gap-2" },
+                                                h("a", { 
+                                                    href: `https://wa.me/55${c.telefone?.replace(/\D/g, '')}`, 
+                                                    target: "_blank",
+                                                    className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all",
+                                                    title: "Ver Contato"
+                                                }, h("i", { "data-lucide": "message-circle", className: "w-4 h-4" })),
+                                                h("button", { onClick: () => deleteAgendamento(c.id), className: "p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" }, 
+                                                    h("i", { "data-lucide": "trash-2", className: "w-4 h-4" })
+                                                )
                                             )
                                         )
-                                    )
-                                ))
+                                    ))
+                                )
                             )
                         ),
                         clientesFiltrados.length === 0 && h("div", { className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
-                    )
+                    ] : [
+                        // CONTEÚDO INTEGRADO DA VIEW DE CONFIGURAÇÃO DA AGENDA
+                        h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
+                            h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
+                                h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#f09f0a]" }, "Rivi Silva"), " 💅"),
+                                h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
+                            ),
+                            h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
+                                h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
+                                    h("i", { "data-lucide": "clock", className: "text-[#f09f0a] w-6 h-6" }),
+                                    h("div", { className: "flex items-center gap-3" },
+                                        h("input", { type: "time", value: config.inicio, onChange: e => setConfig({...config, inicio: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none" }),
+                                        h("span", { className: "font-bold text-zinc-400" }, "até"),
+                                        h("input", { type: "time", value: config.fim, onChange: e => setConfig({...config, fim: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none" })
+                                    )
+                                ),
+                                h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
+                                    h("i", { "data-lucide": "coffee", className: "text-[#f09f0a] w-6 h-6" }),
+                                    h("input", { type: "number", value: config.intervalo, onChange: e => setConfig({...config, intervalo: parseInt(e.target.value) || 0}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-20 text-center outline-none" })
+                                ),
+                                h("button", {
+                                    disabled: loading,
+                                    onClick: async () => {
+                                        setLoading(true);
+                                        const { error } = await _supabase.from('agenda_config').upsert({ 
+                                            id: 1, 
+                                            hora_inicio: config.inicio, 
+                                            hora_fim: config.fim, 
+                                            intervalo_minutos: config.intervalo 
+                                        }, { onConflict: 'id' });
+                                        setLoading(false);
+                                        if (!error) alert("Configurações Salvas! 💅");
+                                        else alert("Erro ao salvar no banco.");
+                                    },
+                                    className: "bg-[#f09f0a] text-black p-5 rounded-full shadow-xl hover:scale-105 transition-all disabled:opacity-50"
+                                }, h("i", { "data-lucide": "save", className: "w-7 h-7" }))
+                            )
+                        ),
+                        h("div", { className: "flex flex-col lg:flex-row gap-8" },
+                            renderMonth(viewDate),
+                            renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
+                        ),
+                        h("div", { className: "flex justify-center items-center gap-10 pt-6" },
+                            h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "p-5 bg-white border border-zinc-200 rounded-full shadow-md hover:bg-zinc-50 transition-colors" }, h("i", { "data-lucide": "chevron-left", className: "w-8 h-8" })),
+                            h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "p-5 bg-white border border-zinc-200 rounded-full shadow-md hover:bg-zinc-50 transition-colors" }, h("i", { "data-lucide": "chevron-right", className: "w-8 h-8" }))
+                        ),
+                        h("div", { className: "bg-zinc-900 p-8 rounded-[3rem] shadow-2xl flex items-center gap-6 border-t-4 border-[#f09f0a]" },
+                            h("div", { className: "bg-[#f09f0a] p-3 rounded-2xl shadow-lg" }, h("i", { "data-lucide": "alert-circle", className: "text-black w-7 h-7" })),
+                            h("div", { className: "flex flex-col" },
+                                h("h4", { className: "text-white text-lg font-black uppercase tracking-widest" }, "Aviso de Gestão"),
+                                h("p", { className: "text-zinc-400 text-sm" }, "2 Cliques: Horário Especial (Dourado) | 1 Clique: Bloquear Dia (Vermelho)")
+                            )
+                        )
+                    ]
                 ),
+
+                // MODAL DE CADASTRO DE AGENDAMENTO (ORIGINAL)
                 isModalOpen && h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" },
                     h("div", { className: "bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#f09f0a] relative" },
                         h("button", { onClick: () => setIsModalOpen(false), className: "absolute top-6 right-6 p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all" }, 
@@ -242,6 +466,36 @@
                         )
                     )
                 ),
+
+                // MODAL DE HORÁRIO ESPECIAL DA AGENDA (INTEGRADO)
+                isConfigModalOpen && h("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4" },
+                    h("div", { className: "bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm border border-zinc-50 space-y-8" },
+                        h("div", { className: "flex justify-between items-center border-b pb-4" },
+                            h("div", { className: "flex flex-col" },
+                                h("h2", { className: "font-black text-zinc-900 uppercase text-[10px] tracking-[0.2em]" }, "Horário Especial"),
+                                h("span", { className: "text-zinc-400 font-bold text-xs" }, selectedDateISO)
+                            ),
+                            h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors" }, h("i", { "data-lucide": "x", className: "w-5 h-5" }))
+                        ),
+                        h("div", { className: "space-y-5" },
+                            h("div", { className: "flex flex-col gap-2" },
+                                h("span", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1" }, "Início"),
+                                h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-4 rounded-2xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] transition-all" })
+                            ),
+                            h("div", { className: "flex flex-col gap-2" },
+                                h("span", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1" }, "Fim"),
+                                h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-4 rounded-2xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] transition-all" })
+                            )
+                        ),
+                        h("button", { 
+                            onClick: salvarExcecao, 
+                            disabled: loading,
+                            className: "w-full bg-[#f09f0a] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl active:scale-95 disabled:opacity-50"
+                        }, loading ? 'Salvando...' : 'Salvar Horário')
+                    )
+                ),
+
+                // FOOTER
                 h("footer", { className: "fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 p-4 text-center z-10" },
                     h("p", { className: "text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]" }, "© 2026 Rivi Silva Style")
                 )
