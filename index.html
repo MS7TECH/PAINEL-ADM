@@ -36,7 +36,6 @@
         const LoginPortal = ({ onLogin }) => {
             const [pass, setPass] = useState("");
             const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
-            
             return h("div", { className: "min-h-screen flex items-center justify-center bg-black p-4" },
                 h("div", { className: "bg-[#111] p-10 rounded-[2.5rem] border border-[#f09f0a]/20 w-full max-w-md text-center shadow-2xl" },
                     h("div", { className: "mb-6 flex justify-center" },
@@ -68,8 +67,7 @@
             const [isModalOpen, setIsModalOpen] = useState(false);
             const [servicosDb, setServicosDb] = useState([]);
             const [servicosSelecionados, setServicosSelecionados] = useState([]);
-            const [novoAgendamento, setNovoAgendamento] = useState({ nome: "", telefone: "", data: new Date().toISOString().split('T')[0], horario: "08:00" });
-
+            const [novoAgendamento, setNovoAgendamento] = useState({ nome: "", telefone: "", data: new Date().toISOString().split('T')[0], horario: "08:00", aniversario: "" });
             const [viewDate, setViewDate] = useState(new Date());
             const [bloqueios, setBloqueios] = useState([]);
             const [mesesLiberados, setMesesLiberados] = useState([]);
@@ -79,6 +77,16 @@
             const [selectedDateISO, setSelectedDateISO] = useState(null);
             const [tempInicio, setTempInicio] = useState('');
             const [tempFim, setTempFim] = useState('');
+
+            // Função auxiliar para aplicar máscara de aniversário DD/MM
+            const aplicarMascaraAniversario = (v) => {
+                v = v.replace(/\D/g, "");
+                if (v.length > 4) v = v.substring(0, 4);
+                if (v.length > 2) {
+                    v = v.substring(0, 2) + "/" + v.substring(2);
+                }
+                return v;
+            };
 
             const fetchAgendaConfigData = useCallback(async () => {
                 try {
@@ -112,7 +120,7 @@
                         setExcecoes(map);
                     }
                 } catch (err) { 
-                    console.error("Erro geral da agenda:", err); 
+                    console.error("Erro geral da agenda:", err);
                 } finally {
                     setLoading(false);
                 }
@@ -164,16 +172,34 @@
 
             const handleAddAgendamento = async () => {
                 if (!novoAgendamento.nome || servicosSelecionados.length === 0) return alert("Preencha o nome e selecione um serviço!");
-                const payload = { cliente_nome: novoAgendamento.nome.toUpperCase(), telefone: novoAgendamento.telefone, data_atendimento: novoAgendamento.data, horario: novoAgendamento.horario, servico: servicosSelecionados.map(s => s.nome).join(", "), valor: totalValorNovo, status: "Aguardando", presenca: "Pendente" };
+                if (novoAgendamento.aniversario && novoAgendamento.aniversario.length < 5) return alert("Insira o aniversário completo (DD/MM) ou deixe em branco!");
+                
+                const payload = { 
+                    cliente_nome: novoAgendamento.nome.toUpperCase(), 
+                    telefone: novoAgendamento.telefone, 
+                    data_atendimento: novoAgendamento.data, 
+                    horario: novoAgendamento.horario, 
+                    servico: servicosSelecionados.map(s => s.nome).join(", "), 
+                    valor: totalValorNovo, 
+                    status: "Aguardando", 
+                    presenca: "Pendente",
+                    aniversario: novoAgendamento.aniversario.length === 5 ? novoAgendamento.aniversario : null
+                };
+
                 const { error } = await _supabase.from("agendamentos").insert([payload]);
-                if (!error) { setIsModalOpen(false); setServicosSelecionados([]); setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "" }); fetchData(); }
+                if (!error) { 
+                    setIsModalOpen(false); 
+                    setServicosSelecionados([]); 
+                    setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "", aniversario: "" }); 
+                    fetchData();
+                }
             };
 
             const abrirConfigModal = (dateISO) => {
                 setSelectedDateISO(dateISO);
-                const atual = excecoes[dateISO] || config;
-                setTempInicio(atual.inicio);
-                setTempFim(atual.fim);
+                const abrirConfigModal = excecoes[dateISO] || config;
+                setTempInicio(abrirConfigModal.inicio);
+                setTempFim(abrirConfigModal.fim);
                 setIsConfigModalOpen(true);
             };
 
@@ -199,7 +225,6 @@
 
             const toggleBloqueio = async (dateStr) => {
                 const jaBloqueado = bloqueios.includes(dateStr);
-                
                 if (jaBloqueado) {
                     setBloqueios(prev => prev.filter(d => d !== dateStr));
                     const { error } = await _supabase.from('agenda_bloqueada').delete().eq('data_intercitada', dateStr);
@@ -231,7 +256,6 @@
                             onClick: async () => {
                                 const novoStatus = !isLiberado;
                                 setMesesLiberados(prev => novoStatus ? [...prev, mesAnoKey] : prev.filter(m => m !== mesAnoKey));
-                                
                                 const { error } = await _supabase.from('meses_liberados').upsert(
                                     { mes_ano: mesAnoKey, liberado: novoStatus },
                                     { onConflict: 'mes_ano' }
@@ -339,8 +363,12 @@
                                     clientesFiltrados.map(c => h("tr", { key: c.id, className: "hover:bg-gray-50/80 transition-all group" },
                                         h("td", { className: "px-8 py-6" }, h("span", { className: "bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
                                         h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
-                                            c.cliente_nome,
-                                            h("p", { className: "text-[8px] text-gray-400 not-italic font-bold" }, c.servico)
+                                            h("div", { className: "flex items-center gap-3" },
+                                                h("span", null, c.cliente_nome),
+                                                // 🎂 SELO DE ANIVERSÁRIO EXIBIDO NA TABELA SE EXISTIR
+                                                c.aniversario && h("span", { className: "bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-md flex items-center gap-1 normal-case" }, `🎂 ${c.aniversario}`)
+                                            ),
+                                            h("p", { className: "text-[8px] text-gray-400 not-italic font-bold mt-1" }, c.servico)
                                         ),
                                         h("td", { className: "px-8 py-6 text-center" }, 
                                             h("button", { 
@@ -437,6 +465,18 @@
                                 h("div", { className: "grid grid-cols-2 gap-3" },
                                     h("input", { type: "date", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.data, onChange: (e) => setNovoAgendamento({...novoAgendamento, data: e.target.value}) }),
                                     h("input", { type: "time", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.horario, onChange: (e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value}) })
+                                ),
+                                // 🎂 NOVO CAMPO DE ANIVERSÁRIO NO CADASTRO MANUAL DO ADMIN
+                                h("div", { className: "space-y-1" },
+                                    h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Aniversário (Opcional)"),
+                                    h("input", { 
+                                        type: "text", 
+                                        maxLength: 5,
+                                        className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]", 
+                                        placeholder: "EX: 25/08", 
+                                        value: novoAgendamento.aniversario, 
+                                        onChange: (e) => setNovoAgendamento({...novoAgendamento, aniversario: aplicarMascaraAniversario(e.target.value)}) 
+                                    })
                                 ),
                                 h("div", { className: "space-y-2" },
                                     h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Procedimentos"),
