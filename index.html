@@ -77,8 +77,10 @@
             const [selectedDateISO, setSelectedDateISO] = useState(null);
             const [tempInicio, setTempInicio] = useState('');
             const [tempFim, setTempFim] = useState('');
+            
+            // Novo estado para controlar horários específicos inativados por data: { "2026-06-10": ["12:00", "14:00"] }
+            const [horariosInativadosMap, setHorariosInativadosMap] = useState({});
 
-            // Função auxiliar para aplicar máscara de aniversário DD/MM
             const aplicarMascaraAniversario = (v) => {
                 v = v.replace(/\D/g, "");
                 if (v.length > 4) v = v.substring(0, 4);
@@ -119,6 +121,17 @@
                         });
                         setExcecoes(map);
                     }
+
+                    // Buscar horários pontuais inativados
+                    const { data: hInativadosData } = await _supabase.from('horarios_bloqueados_pontuais').select('*');
+                    if (hInativadosData) {
+                        const hMap = {};
+                        hInativadosData.forEach(item => {
+                            if (!hMap[item.data]) hMap[item.data] = [];
+                            hMap[item.data].push(item.horario.slice(0, 5));
+                        });
+                        setHorariosInativadosMap(hMap);
+                    }
                 } catch (err) { 
                     console.error("Erro geral da agenda:", err);
                 } finally {
@@ -136,7 +149,7 @@
 
             useEffect(() => {
                 lucide.createIcons();
-            }, [clientes, isModalOpen, isConfigModalOpen, isAuth, currentTab, viewDate, mesesLiberados, bloqueios, excecoes]);
+            }, [clientes, isModalOpen, isConfigModalOpen, isAuth, currentTab, viewDate, mesesLiberados, bloqueios, excecoes, horariosInativadosMap]);
 
             async function fetchServicos() {
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
@@ -197,9 +210,9 @@
 
             const abrirConfigModal = (dateISO) => {
                 setSelectedDateISO(dateISO);
-                const abrirConfigModal = excecoes[dateISO] || config;
-                setTempInicio(abrirConfigModal.inicio);
-                setTempFim(abrirConfigModal.fim);
+                const confAtiva = excecoes[dateISO] || config;
+                setTempInicio(confAtiva.inicio);
+                setTempFim(confAtiva.fim);
                 setIsConfigModalOpen(true);
             };
 
@@ -215,7 +228,6 @@
 
                 if (!error) {
                     setExcecoes(prev => ({ ...prev, [selectedDateISO]: { inicio: tempInicio, fim: tempFim } }));
-                    setIsConfigModalOpen(false);
                 } else {
                     console.error(error);
                     alert("Erro ao salvar horário especial.");
@@ -223,11 +235,64 @@
                 setLoading(false);
             };
 
+            // Função para alternar o bloqueio de um horário específico numa data
+            const toggleHorarioPontual = async (horarioStr) => {
+                if (!selectedDateISO) return;
+                const inativadosAtuais = horariosInativadosMap[selectedDateISO] || [];
+                const jaInativado = inativadosAtuais.includes(horarioStr);
+
+                if (jaInativado) {
+                    // Remover do Supabase
+                    const { error } = await _supabase.from('horarios_bloqueados_pontuais')
+                        .delete()
+                        .match({ data: selectedDateISO, horario: horarioStr });
+                    
+                    if (!error) {
+                        setHorariosInativadosMap(prev => ({
+                            ...prev,
+                            [selectedDateISO]: inativadosAtuais.filter(h => h !== horarioStr)
+                        }));
+                    }
+                } else {
+                    // Adicionar ao Supabase
+                    const { error } = await _supabase.from('horarios_bloqueados_pontuais')
+                        .insert([{ data: selectedDateISO, horario: horarioStr }]);
+                    
+                    if (!error) {
+                        setHorariosInativadosMap(prev => ({
+                            ...prev,
+                            [selectedDateISO]: [...inativadosAtuais, horarioStr]
+                        }));
+                    }
+                }
+            };
+
+            // Gerador automático de slots de horário para o modal de horários especiais
+            const gerarSlotsDoDia = () => {
+                if (!selectedDateISO) return [];
+                const confAtiva = excecoes[selectedDateISO] || config;
+                const [hIni, mIni] = confAtiva.inicio.split(':').map(Number);
+                const [hFim, mFim] = confAtiva.fim.split(':').map(Number);
+                
+                let minutosAtuais = hIni * 60 + mIni;
+                const minutosFim = hFim * 60 + mFim;
+                const intervalo = Number(config.intervalo) || 40;
+
+                const slots = [];
+                while (minutosAtuais < minutosFim) {
+                    const hh = String(Math.floor(minutosAtuais / 60)).padStart(2, '0');
+                    const mm = String(minutosAtuais % 60).padStart(2, '0');
+                    slots.push(`${hh}:${mm}`);
+                    minutosAtuais += intervalo;
+                }
+                return slots;
+            };
+
             const toggleBloqueio = async (dateStr) => {
                 const jaBloqueado = bloqueios.includes(dateStr);
                 if (jaBloqueado) {
                     setBloqueios(prev => prev.filter(d => d !== dateStr));
-                    const { error } = await _supabase.from('agenda_bloqueada').delete().eq('data_intercitada', dateStr);
+                    const { error } = await _supabase.from('agenda_bloqueada').delete().eq('data_interditada', dateStr);
                     if (error) {
                         const { error: errOld } = await _supabase.from('agenda_bloqueada').delete().eq('data_interditada', dateStr);
                         if (errOld) console.error("Erro ao desbloquear:", errOld);
@@ -274,7 +339,7 @@
                             const dia = i + 1;
                             const dataISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                             const isBlocked = bloqueios.includes(dataISO);
-                            const temExcecao = excecoes[dataISO];
+                            const temExcecao = excecoes[dataISO] || (horariosInativadosMap[dataISO] && horariosInativadosMap[dataISO].length > 0);
 
                             return h("button", {
                                 key: dia,
@@ -365,7 +430,6 @@
                                         h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
                                             h("div", { className: "flex items-center gap-3" },
                                                 h("span", null, c.cliente_nome),
-                                                // 🎂 SELO DE ANIVERSÁRIO EXIBIDO NA TABELA SE EXISTIR
                                                 c.aniversario && h("span", { className: "bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-md flex items-center gap-1 normal-case" }, `🎂 ${c.aniversario}`)
                                             ),
                                             h("p", { className: "text-[8px] text-gray-400 not-italic font-bold mt-1" }, c.servico)
@@ -444,7 +508,7 @@
                             h("div", { className: "bg-[#f09f0a] p-3 rounded-2xl shadow-lg" }, h("i", { "data-lucide": "alert-circle", className: "text-black w-7 h-7" })),
                             h("div", { className: "flex flex-col" },
                                 h("h4", { className: "text-white text-lg font-black uppercase tracking-widest" }, "Aviso de Gestão"),
-                                h("p", { className: "text-zinc-400 text-sm" }, "2 Cliques: Horário Especial (Dourado) | 1 Clique: Bloquear Dia (Vermelho)")
+                                h("p", { className: "text-zinc-400 text-sm" }, "2 Cliques: Horário Especial / Bloquear Horários Específicos (Dourado) | 1 Clique: Bloquear Dia Inteiro (Vermelho)")
                             )
                         )
                     ]
@@ -466,7 +530,6 @@
                                     h("input", { type: "date", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.data, onChange: (e) => setNovoAgendamento({...novoAgendamento, data: e.target.value}) }),
                                     h("input", { type: "time", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.horario, onChange: (e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value}) })
                                 ),
-                                // 🎂 NOVO CAMPO DE ANIVERSÁRIO NO CADASTRO MANUAL DO ADMIN
                                 h("div", { className: "space-y-1" },
                                     h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Aniversário (Opcional)"),
                                     h("input", { 
@@ -498,30 +561,65 @@
                     )
                 ),
 
+                // Modal Atualizado: Permite mudar horário de início/fim E inativar horários específicos (ex: 12:00)
                 isConfigModalOpen && h("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4" },
-                    h("div", { className: "bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-sm border border-zinc-50 space-y-8" },
+                    h("div", { className: "bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-zinc-50 space-y-6 max-h-[90vh] overflow-y-auto custom-scroll" },
                         h("div", { className: "flex justify-between items-center border-b pb-4" },
                             h("div", { className: "flex flex-col" },
-                                h("h2", { className: "font-black text-zinc-900 uppercase text-[10px] tracking-[0.2em]" }, "Horário Especial"),
+                                h("h2", { className: "font-black text-zinc-900 uppercase text-[10px] tracking-[0.2em]" }, "Gestão do Dia & Horários"),
                                 h("span", { className: "text-zinc-400 font-bold text-xs" }, selectedDateISO)
                             ),
                             h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors" }, h("i", { "data-lucide": "x", className: "w-5 h-5" }))
                         ),
-                        h("div", { className: "space-y-5" },
-                            h("div", { className: "flex flex-col gap-2" },
-                                h("span", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1" }, "Início"),
-                                h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-4 rounded-2xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] transition-all" })
+                        h("div", { className: "space-y-4" },
+                            h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, "Ajustar Horário de Funcionamento do Dia"),
+                            h("div", { className: "grid grid-cols-2 gap-3" },
+                                h("div", { className: "flex flex-col gap-1" },
+                                    h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Início"),
+                                    h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a]" })
+                                ),
+                                h("div", { className: "flex flex-col gap-1" },
+                                    h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Fim"),
+                                    h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a]" })
+                                )
                             ),
-                            h("div", { className: "flex flex-col gap-2" },
-                                h("span", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1" }, "Fim"),
-                                h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-4 rounded-2xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] transition-all" })
+                            h("button", { 
+                                onClick: salvarExcecao, 
+                                disabled: loading,
+                                className: "w-full bg-zinc-900 text-white font-black py-3 rounded-xl uppercase text-[10px] tracking-[0.1em] hover:bg-[#f09f0a] hover:text-black transition-all"
+                            }, 'Salvar Expediente do Dia')
+                        ),
+
+                        // Listagem e Inativação Individual de Horários (ex: 12:00)
+                        h("div", { className: "space-y-3 pt-4 border-t border-zinc-100" },
+                            h("div", { className: "flex flex-col" },
+                                h("span", { className: "text-[10px] font-black text-zinc-900 uppercase tracking-widest" }, "Inativar Horários Específicos"),
+                                h("span", { className: "text-[9px] text-zinc-400 font-medium" }, "Clique num horário para bloquear/desbloquear (ex: 12:00)")
+                            ),
+                            h("div", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
+                                gerarSlotsDoDia().map(slot => {
+                                    const inativados = horariosInativadosMap[selectedDateISO] || [];
+                                    const isInativado = inativados.includes(slot);
+                                    return h("button", {
+                                        key: slot,
+                                        onClick: () => toggleHorarioPontual(slot),
+                                        className: `p-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border ${
+                                            isInativado 
+                                                ? 'bg-red-500 text-white border-red-600 line-through opacity-75 shadow-inner' 
+                                                : 'bg-white text-zinc-800 border-zinc-200 hover:border-[#f09f0a]'
+                                        }`
+                                    }, 
+                                        slot,
+                                        h("span", { className: "text-[8px] uppercase tracking-tighter mt-0.5 font-bold" }, isInativado ? 'Bloqueado' : 'Disponível')
+                                    );
+                                })
                             )
                         ),
+
                         h("button", { 
-                            onClick: salvarExcecao, 
-                            disabled: loading,
-                            className: "w-full bg-[#f09f0a] text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl active:scale-95 disabled:opacity-50"
-                        }, loading ? 'Salvando...' : 'Salvar Horário')
+                            onClick: () => setIsConfigModalOpen(false),
+                            className: "w-full bg-[#f09f0a] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl"
+                        }, "Concluir")
                     )
                 ),
 
