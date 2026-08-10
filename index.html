@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+# Vamos gerar o arquivo HTML atualizado e corrigido com todas as melhorias e correções solicitadas.
+html_content = """<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -79,7 +80,7 @@
             const [horariosInativadosMap, setHorariosInativadosMap] = useState({});
 
             const aplicarMascaraAniversario = (v) => {
-                v = v.replace(/\D/g, "");
+                v = v.replace(/\\D/g, "");
                 if (v.length > 4) v = v.substring(0, 4);
                 if (v.length > 2) {
                     v = v.substring(0, 2) + "/" + v.substring(2);
@@ -227,7 +228,7 @@
                     alert("Expediente salvo com sucesso!");
                 } else {
                     console.error(error);
-                    alert("Erro ao salvar horário especial.");
+                    alert("Erro ao salvar horário especial. Verifique se a tabela 'agenda_excecoes' possui a restrição unique na coluna data.");
                 }
                 setLoading(false);
             };
@@ -332,7 +333,7 @@
                             const dia = i + 1;
                             const dataISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                             const isBlocked = bloqueios.includes(dataISO);
-                            const temExcecao = excecoes[dataISO] || (horariosInativadosMap[dataISO] && horariosInativadosMap[dataISO].length > 0);
+                            const temExcecao = Boolean(excecoes[dataISO] || (horariosInativadosMap[dataISO] && horariosInativadosMap[dataISO].length > 0));
 
                             return h("div", {
                                 key: dia,
@@ -437,7 +438,7 @@
                                         h("td", { className: "px-8 py-6 text-center" }, 
                                             h("div", { className: "flex justify-center gap-2" },
                                                 h("a", { 
-                                                    href: `https://wa.me/55${c.telefone?.replace(/\D/g, '')}`, 
+                                                    href: `https://wa.me/55${c.telefone?.replace(/\\D/g, '')}`, 
                                                     target: "_blank",
                                                     className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all",
                                                     title: "Ver Contato"
@@ -564,7 +565,6 @@
                             h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors" }, h("i", { "data-lucide": "x", className: "w-5 h-5" }))
                         ),
                         
-                        // Botão para bloquear ou desbloquear o dia inteiro com segurança
                         h("div", { className: "bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex items-center justify-between" },
                             h("div", { className: "flex flex-col" },
                                 h("span", { className: "text-[10px] font-black uppercase text-zinc-900" }, "Estado do Dia Inteiro"),
@@ -639,3 +639,7 @@
     </script>
 </body>
 </html>
+"""
+
+with open("portal_admin_rivisilva.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
