@@ -182,7 +182,10 @@
 
             async function fetchServicos() {
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
-                if (data) setServicosDb(data);
+                if (data) {
+                    setServicosDb(data);
+                    setServicosSelecionadosIds(data.map(s => s.id));
+                }
             }
 
             async function fetchData() {
@@ -286,6 +289,9 @@
             };
 
             const agendamentosFiltradosManicure = agendamentosManicure.filter(item => {
+                // Se o cliente marcou que "Não Veio", desconsideramos do cálculo de pagamento da manicure
+                if (item.presenca === "Não Veio") return false;
+
                 const servicosMarcados = servicosDb.filter(s => servicosSelecionadosIds.includes(s.id));
                 const batePorId = item.servico_id && servicosSelecionadosIds.includes(item.servico_id);
                 const batePorNome = !item.servico_id && item.servico && servicosMarcados.some(
@@ -486,7 +492,9 @@
 
             const stats = {
                 total: clientesFiltrados.length,
-                financeiro: clientesFiltrados.reduce((acc, c) => acc + Number(c.valor || 0), 0)
+                financeiro: clientesFiltrados
+                    .filter(c => c.presenca !== "Não Veio")
+                    .reduce((acc, c) => acc + Number(c.valor || 0), 0)
             };
 
             return h("div", { className: "min-h-screen flex flex-col pb-20 relative" },
@@ -557,7 +565,7 @@
                                 h("p", { className: "text-3xl font-black italic" }, stats.total)
                             ),
                             h("div", { className: "bg-black p-6 rounded-[2rem] shadow-xl text-white" },
-                                h("p", { className: "text-[9px] font-black text-[#f09f0a] uppercase" }, "Receita Prevista (Filtro)"),
+                                h("p", { className: "text-[9px] font-black text-[#f09f0a] uppercase" }, "Receita Prevista (Filtro - Excluindo Não Veio)"),
                                 h("p", { className: "text-2xl font-black italic" }, `R$ ${stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
                             )
                         ),
@@ -565,31 +573,47 @@
                             h("table", { className: "w-full text-left min-w-[750px]" },
                                 h("thead", { className: "bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest" },
                                     h("tr", null,
-                                        h("th", { className: "px-8 py-6" }, "Horário"),
-                                        h("th", { className: "px-8 py-6" }, "Cliente"),
-                                        h("th", { className: "px-8 py-6 text-center" }, "Status"),
-                                        h("th", { className: "px-8 py-6 text-right" }, "Valor"),
-                                        h("th", { className: "px-8 py-6 text-center" }, "Ações")
+                                        h("th", { className: "px-6 py-6" }, "Horário"),
+                                        h("th", { className: "px-6 py-6" }, "Cliente"),
+                                        h("th", { className: "px-6 py-6 text-center" }, "Status (Pagamento)"),
+                                        h("th", { className: "px-6 py-6 text-center" }, "Presença (Veio?)"),
+                                        h("th", { className: "px-6 py-6 text-right" }, "Valor"),
+                                        h("th", { className: "px-6 py-6 text-center" }, "Ações")
                                     )
                                 ),
                                 h("tbody", { className: "divide-y divide-gray-50" },
-                                    clientesFiltrados.map(c => h("tr", { key: c.id, className: "hover:bg-gray-50/80 transition-all group" },
-                                        h("td", { className: "px-8 py-6" }, h("span", { className: "bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
-                                        h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
+                                    clientesFiltrados.map(c => h("tr", { key: c.id, className: `hover:bg-gray-50/80 transition-all group ${c.presenca === 'Não Veio' ? 'opacity-40 bg-red-50/20' : ''}` },
+                                        h("td", { className: "px-6 py-6" }, h("span", { className: "bg-black text-[#f09f0a] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
+                                        h("td", { className: "px-6 py-6 font-black italic uppercase text-sm" }, 
                                             h("div", { className: "flex items-center gap-3" },
                                                 h("span", null, c.cliente_nome),
                                                 c.aniversario && h("span", { className: "bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-md flex items-center gap-1 normal-case" }, `🎂 ${c.aniversario}`)
                                             ),
                                             h("p", { className: "text-[8px] text-gray-400 not-italic font-bold mt-1" }, c.servico)
                                         ),
-                                        h("td", { className: "px-8 py-6 text-center" }, 
+                                        h("td", { className: "px-6 py-6 text-center" }, 
                                             h("button", { 
                                                 onClick: () => updateStatus(c.id, 'status', c.status === 'Sinal Pago' ? 'Pendente' : 'Sinal Pago'),
-                                                className: `px-4 py-2 rounded-xl text-[9px] font-black uppercase ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`
+                                                className: `px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${c.status === 'Sinal Pago' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`
                                             }, c.status === 'Sinal Pago' ? 'Pago' : 'Pendente')
                                         ),
-                                        h("td", { className: "px-8 py-6 text-right font-black italic text-[#f09f0a]" }, `R$ ${Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`),
-                                        h("td", { className: "px-8 py-6 text-center" }, 
+                                        h("td", { className: "px-6 py-6 text-center" },
+                                            h("select", {
+                                                value: c.presenca || "Pendente",
+                                                onChange: (e) => updateStatus(c.id, 'presenca', e.target.value),
+                                                className: `px-3 py-2 rounded-xl text-[9px] font-black uppercase outline-none cursor-pointer border ${
+                                                    c.presenca === 'Veio' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                                                    c.presenca === 'Não Veio' ? 'bg-rose-50 text-rose-600 border-rose-200' :
+                                                    'bg-amber-50 text-amber-600 border-amber-200'
+                                                }`
+                                            },
+                                                h("option", { value: "Pendente" }, "Pendente"),
+                                                h("option", { value: "Veio" }, "Veio"),
+                                                h("option", { value: "Não Veio" }, "Não Veio")
+                                            )
+                                        ),
+                                        h("td", { className: "px-6 py-6 text-right font-black italic text-[#f09f0a]" }, `R$ ${Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`),
+                                        h("td", { className: "px-6 py-6 text-center" }, 
                                             h("div", { className: "flex justify-center gap-2" },
                                                 h("a", { 
                                                     href: `https://api.whatsapp.com/send?phone=55${c.telefone ? c.telefone.replace(/\D/g, '') : ''}&text=${encodeURIComponent(`Olá ${c.cliente_nome}, tudo bem? Passando para confirmar seu agendamento na Rivi Silva Esmalteria para o dia ${c.data_atendimento ? c.data_atendimento.split('-').reverse().join('/') : ''} às ${c.horario}. Te aguardo! 💅`)}`, 
@@ -608,7 +632,7 @@
                         ),
                         clientesFiltrados.length === 0 && h("div", { key: "s3", className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
                     ] : currentTab === "manicure" ? [
-                        // ABA PAINEL DA MANICURE
+                        // ABA PAINEL DA MANICURE COM DATAS DE INÍCIO E TÉRMINO
                         h("div", { key: "m1", className: "space-y-8" },
                             h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[35px] shadow-sm border border-zinc-100" },
                                 h("div", null,
@@ -684,7 +708,7 @@
                                 h("div", { className: "z-10" },
                                     h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em] text-[#f09f0a]" }, "Valor Total a Pagar no Período"),
                                     h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPagamentoManicure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
-                                    h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${agendamentosFiltradosManicure.length} atendimentos dos serviços selecionados.`)
+                                    h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${agendamentosFiltradosManicure.length} atendimentos realizados (desconsiderando clientes que não vieram).`)
                                 )
                             ),
                             h("div", { className: "bg-white rounded-[35px] shadow-sm border border-zinc-100 overflow-hidden" },
@@ -967,7 +991,7 @@
                                 h("span", { className: "text-[10px] font-black text-zinc-900 uppercase tracking-widest" }, "Inativar Horários Específicos"),
                                 h("span", { className: "text-[9px] text-zinc-400 font-medium" }, "Clique num horário para deixá-lo vermelho/bloqueado")
                             ),
-                            h("div", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
+                            h("grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
                                 gerarSlotsDoDia().map(slot => {
                                     const inativados = horariosInativadosMap[selectedDateISO] || [];
                                     const isInativado = inativados.includes(slot);
@@ -991,7 +1015,7 @@
                             onClick: () => setIsConfigModalOpen(false),
                             className: "w-full bg-[#f09f0a] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl"
                         }, "Concluir")
-                    )
+                    ]
                 ),
 
                 h("footer", { className: "fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 p-4 text-center z-10" },
