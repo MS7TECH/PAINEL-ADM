@@ -9,7 +9,6 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
 
@@ -43,9 +42,7 @@
             return h("div", { className: "min-h-screen flex items-center justify-center bg-black p-4" },
                 h("div", { className: "bg-[#111] p-10 rounded-[2.5rem] border border-[#f09f0a]/20 w-full max-w-md text-center shadow-2xl" },
                     h("div", { className: "mb-6 flex justify-center" },
-                        h("div", { className: "w-20 h-20 rounded-full bg-[#f09f0a] flex items-center justify-center shadow-[0_0_30px_rgba(240,159,10,0.3)]" },
-                            h("i", { "data-lucide": "shield-check", className: "text-black w-10 h-10" })
-                        )
+                        h("div", { className: "w-20 h-20 rounded-full bg-[#f09f0a] flex items-center justify-center shadow-[0_0_30px_rgba(240,159,10,0.3)] text-black font-black text-2xl" }, "🛡️")
                     ),
                     h("h2", { className: "text-[#f09f0a] font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
                     h("input", { 
@@ -135,7 +132,7 @@
                     if (eData) {
                         const map = {};
                         eData.forEach(ex => {
-                            if (ex.data && ex.hora_inicio && ex.hora_fim) {
+                            if (ex.hora_inicio && ex.hora_fim) {
                                 map[ex.data] = { 
                                     inicio: ex.hora_inicio.slice(0, 5), 
                                     fim: ex.hora_fim.slice(0, 5) 
@@ -149,10 +146,8 @@
                     if (hInativadosData) {
                         const hMap = {};
                         hInativadosData.forEach(item => {
-                            if (item.data && item.horario) {
-                                if (!hMap[item.data]) hMap[item.data] = [];
-                                hMap[item.data].push(item.horario.slice(0, 5));
-                            }
+                            if (!hMap[item.data]) hMap[item.data] = [];
+                            hMap[item.data].push(item.horario.slice(0, 5));
                         });
                         setHorariosInativadosMap(hMap);
                     }
@@ -172,39 +167,23 @@
                 }
             }, [isAuth, filterDate, fetchAgendaConfigData]);
 
-            useEffect(() => {
-                try {
-                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                        window.lucide.createIcons();
-                    }
-                } catch(e) {
-                    console.error("Erro ao gerar ícones:", e);
-                }
-            });
-
             async function fetchServicos() {
-                try {
-                    const { data } = await _supabase.from("servicos").select("*").order("nome");
-                    if (data) setServicosDb(data);
-                } catch(e) { console.error(e); }
+                const { data } = await _supabase.from("servicos").select("*").order("nome");
+                if (data) setServicosDb(data);
             }
 
             async function fetchData() {
-                try {
-                    setLoading(true);
-                    const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
-                    if (!error) setClientes(data || []);
-                } catch(e) { console.error(e); }
-                finally { setLoading(false); }
+                setLoading(true);
+                const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
+                if (!error) setClientes(data || []);
+                setLoading(false);
             }
 
             async function fetchFinanceiroData() {
-                try {
-                    setLoadingFinanceiro(true);
-                    const { data, error } = await _supabase.from("financeiro").select("*").order("data", { ascending: false });
-                    if (!error) setLancamentosFinanceiros(data || []);
-                } catch(e) { console.error(e); }
-                finally { setLoadingFinanceiro(false); }
+                setLoadingFinanceiro(true);
+                const { data, error } = await _supabase.from("financeiro").select("*").order("data", { ascending: false });
+                if (!error) setLancamentosFinanceiros(data || []);
+                setLoadingFinanceiro(false);
             }
 
             async function updateStatus(id, campo, valor) {
@@ -220,15 +199,15 @@
             }
 
             const toggleServico = (servico) => {
-                const isSelected = (servicosSelecionados || []).some(s => s.nome === servico.nome);
+                const isSelected = servicosSelecionados.some(s => s.nome === servico.nome);
                 if (isSelected) setServicosSelecionados(servicosSelecionados.filter(s => s.nome !== servico.nome));
-                else setServicosSelecionados([...(servicosSelecionados || []), servico]);
+                else setServicosSelecionados([...servicosSelecionados, servico]);
             };
 
-            const totalValorNovo = (servicosSelecionados || []).reduce((acc, s) => acc + (Number(s.preco) || 0), 0);
+            const totalValorNovo = servicosSelecionados.reduce((acc, s) => acc + (Number(s.preco) || 0), 0);
 
             const handleAddAgendamento = async () => {
-                if (!novoAgendamento.nome || (servicosSelecionados || []).length === 0) return alert("Preencha o nome e selecione um serviço!");
+                if (!novoAgendamento.nome || servicosSelecionados.length === 0) return alert("Preencha o nome e selecione um serviço!");
                 if (novoAgendamento.aniversario && novoAgendamento.aniversario.length < 5) return alert("Insira o aniversário completo (DD/MM) ou deixe em branco!");
                 
                 const payload = { 
@@ -236,7 +215,7 @@
                     telefone: novoAgendamento.telefone, 
                     data_atendimento: novoAgendamento.data, 
                     horario: novoAgendamento.horario, 
-                    servico: (servicosSelecionados || []).map(s => s.nome).join(", "), 
+                    servico: servicosSelecionados.map(s => s.nome).join(", "), 
                     valor: totalValorNovo, 
                     status: "Aguardando", 
                     presenca: "Pendente",
@@ -257,7 +236,7 @@
                     alert("Selecione a data de início e término!");
                     return;
                 }
-                if ((servicosSelecionadosIds || []).length === 0) {
+                if (servicosSelecionadosIds.length === 0) {
                     alert("Selecione pelo menos um serviço para calcular!");
                     return;
                 }
@@ -280,7 +259,7 @@
 
             const toggleServicoManicure = (id) => {
                 setServicosSelecionadosIds(prev => 
-                    (prev || []).includes(id) ? (prev || []).filter(sId => sId !== id) : [...(prev || []), id]
+                    prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
                 );
             };
 
@@ -293,24 +272,23 @@
             };
 
             const agendamentosFiltradosManicure = (agendamentosManicure || []).filter(item => {
-                if (!item) return false;
-                const servicosMarcados = (servicosDb || []).filter(s => (servicosSelecionadosIds || []).includes(s.id));
-                const batePorId = item.servico_id && (servicosSelecionadosIds || []).includes(item.servico_id);
+                const servicosMarcados = (servicosDb || []).filter(s => servicosSelecionadosIds.includes(s.id));
+                const batePorId = item.servico_id && servicosSelecionadosIds.includes(item.servico_id);
                 const batePorNome = !item.servico_id && item.servico && servicosMarcados.some(
                     s => s.nome && item.servico && s.nome.trim().toLowerCase() === item.servico.trim().toLowerCase()
                 );
                 return Boolean(batePorId || batePorNome);
             });
 
-            const valorTotalPagamentoManicure = agendamentosFiltradosManicure.reduce((acc, item) => acc + (Number(item?.valor) || 0), 0);
+            const valorTotalPagamentoManicure = agendamentosFiltradosManicure.reduce((acc, item) => acc + Number(item.valor || 0), 0);
 
             const handleSaveFinanceiro = async (e) => {
                 e.preventDefault();
                 const valorNumerico = parseFloat(String(formDataFinanceiro.valor).replace(",", ".")) || 0;
                 const payload = {
-                    item: (formDataFinanceiro.item || "").toUpperCase(),
-                    servico: (formDataFinanceiro.item || "").toUpperCase(),
-                    categoria: (formDataFinanceiro.categoria || "").toUpperCase(),
+                    item: formDataFinanceiro.item.toUpperCase(),
+                    servico: formDataFinanceiro.item.toUpperCase(),
+                    categoria: formDataFinanceiro.categoria.toUpperCase(),
                     valor: valorNumerico,
                     tipo: formDataFinanceiro.tipo,
                     data: new Date().toISOString().split('T')[0],
@@ -328,7 +306,7 @@
             };
 
             const lancamentosFiltradosFin = (lancamentosFinanceiros || []).filter(l => {
-                if (!l || !l.data) return false;
+                if (!l.data) return false;
                 const partes = l.data.split('-');
                 if (partes.length < 2) return false;
                 const [ano, mes] = partes;
@@ -336,18 +314,18 @@
             });
 
             const totalEntradasFin = lancamentosFiltradosFin
-                .filter(l => l && l.tipo === "entrada")
+                .filter(l => l.tipo === "entrada")
                 .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
 
             const totalSaidasFin = lancamentosFiltradosFin
-                .filter(l => l && l.tipo === "saida")
+                .filter(l => l.tipo === "saida")
                 .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
 
             const lucroRealFin = totalEntradasFin - totalSaidasFin;
 
             const abrirConfigModal = (dateISO) => {
                 setSelectedDateISO(dateISO);
-                const confAtiva = (excecoes || {})[dateISO] || config;
+                const confAtiva = excecoes[dateISO] || config;
                 setTempInicio(confAtiva.inicio);
                 setTempFim(confAtiva.fim);
                 setIsConfigModalOpen(true);
@@ -364,7 +342,7 @@
                 }, { onConflict: 'data' });
 
                 if (!error) {
-                    setExcecoes(prev => ({ ...(prev || {}), [selectedDateISO]: { inicio: tempInicio, fim: tempFim } }));
+                    setExcecoes(prev => ({ ...prev, [selectedDateISO]: { inicio: tempInicio, fim: tempFim } }));
                     alert("Expediente salvo com sucesso!");
                 } else {
                     console.error(error);
@@ -375,7 +353,7 @@
 
             const toggleHorarioPontual = async (horarioStr) => {
                 if (!selectedDateISO) return;
-                const inativadosAtuais = (horariosInativadosMap || {})[selectedDateISO] || [];
+                const inativadosAtuais = horariosInativadosMap[selectedDateISO] || [];
                 const jaInativado = inativadosAtuais.includes(horarioStr);
 
                 if (jaInativado) {
@@ -385,8 +363,8 @@
                     
                     if (!error) {
                         setHorariosInativadosMap(prev => ({
-                            ...(prev || {}),
-                            [selectedDateISO]: (inativadosAtuais || []).filter(h => h !== horarioStr)
+                            ...prev,
+                            [selectedDateISO]: inativadosAtuais.filter(h => h !== horarioStr)
                         }));
                     }
                 } else {
@@ -395,8 +373,8 @@
                     
                     if (!error) {
                         setHorariosInativadosMap(prev => ({
-                            ...(prev || {}),
-                            [selectedDateISO]: [...(inativadosAtuais || []), horarioStr]
+                            ...prev,
+                            [selectedDateISO]: [...inativadosAtuais, horarioStr]
                         }));
                     }
                 }
@@ -404,7 +382,7 @@
 
             const gerarSlotsDoDia = () => {
                 if (!selectedDateISO) return [];
-                const confAtiva = (excecoes || {})[selectedDateISO] || config;
+                const confAtiva = excecoes[selectedDateISO] || config;
                 const [hIni, mIni] = (confAtiva.inicio || '09:00').split(':').map(Number);
                 const [hFim, mFim] = (confAtiva.fim || '18:00').split(':').map(Number);
                 
@@ -424,12 +402,12 @@
 
             const toggleBloqueioDiaModal = async () => {
                 if (!selectedDateISO) return;
-                const jaBloqueado = (bloqueios || []).includes(selectedDateISO);
+                const jaBloqueado = bloqueios.includes(selectedDateISO);
                 if (jaBloqueado) {
-                    setBloqueios(prev => (prev || []).filter(d => d !== selectedDateISO));
+                    setBloqueios(prev => prev.filter(d => d !== selectedDateISO));
                     await _supabase.from('agenda_bloqueada').delete().eq('data_interditada', selectedDateISO);
                 } else {
-                    setBloqueios(prev => [...(prev || []), selectedDateISO]);
+                    setBloqueios(prev => [...prev, selectedDateISO]);
                     await _supabase.from('agenda_bloqueada').insert([{ data_interditada: selectedDateISO }]);
                 }
             };
@@ -438,7 +416,7 @@
                 const year = date.getFullYear();
                 const month = date.getMonth();
                 const mesAnoKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-                const isLiberado = (mesesLiberados || []).includes(mesAnoKey);
+                const isLiberado = mesesLiberados.includes(mesAnoKey);
                 const days = new Date(year, month + 1, 0).getDate();
                 const firstDay = new Date(year, month, 1).getDay();
                 const monthName = date.toLocaleString('pt-BR', { month: 'long' });
@@ -450,7 +428,7 @@
                             disabled: loading,
                             onClick: async () => {
                                 const novoStatus = !isLiberado;
-                                setMesesLiberados(prev => novoStatus ? [...(prev || []), mesAnoKey] : (prev || []).filter(m => m !== mesAnoKey));
+                                setMesesLiberados(prev => novoStatus ? [...prev, mesAnoKey] : prev.filter(m => m !== mesAnoKey));
                                 const { error } = await _supabase.from('meses_liberados').upsert(
                                     { mes_ano: mesAnoKey, liberado: novoStatus },
                                     { onConflict: 'mes_ano' }
@@ -458,7 +436,7 @@
                                 if (error) { console.error(error); fetchAgendaConfigData(); }
                             },
                             className: `flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-sm transition-all ${isLiberado ? 'bg-[#f09f0a] text-black' : 'bg-zinc-200 text-zinc-500'}`
-                        }, isLiberado ? h("i", { "data-lucide": "unlock", className: "w-3.5 h-3.5" }) : h("i", { "data-lucide": "lock", className: "w-3.5 h-3.5" }), isLiberado ? 'Aberto' : 'Trancado')
+                        }, isLiberado ? '🔓 Aberto' : '🔒 Trancado')
                     ),
                     h("div", { className: "grid grid-cols-7 gap-1 text-center mb-4 text-[10px] font-bold text-zinc-400" },
                         ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map((d, i) => h("div", { key: i }, d))
@@ -468,8 +446,8 @@
                         Array.from({ length: days }).map((_, i) => {
                             const dia = i + 1;
                             const dataISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                            const isBlocked = (bloqueios || []).includes(dataISO);
-                            const temExcecao = Boolean((excecoes || {})[dataISO] || ((horariosInativadosMap || {})[dataISO] && (horariosInativadosMap || {})[dataISO].length > 0));
+                            const isBlocked = bloqueios.includes(dataISO);
+                            const temExcecao = Boolean(excecoes[dataISO] || (horariosInativadosMap[dataISO] && horariosInativadosMap[dataISO].length > 0));
 
                             return h("div", {
                                 key: dia,
@@ -486,14 +464,14 @@
             };
 
             const clientesFiltrados = (clientes || []).filter(c => 
-                c && c.cliente_nome && c.cliente_nome.toLowerCase().includes((searchTerm || "").toLowerCase())
+                c.cliente_nome && c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
             if (!isAuth) return h(LoginPortal, { onLogin: () => setIsAuth(true) });
 
             const stats = {
                 total: clientesFiltrados.length,
-                financeiro: clientesFiltrados.reduce((acc, c) => acc + (Number(c?.valor) || 0), 0)
+                financeiro: clientesFiltrados.reduce((acc, c) => acc + Number(c.valor || 0), 0)
             };
 
             return h("div", { className: "min-h-screen flex flex-col pb-20 relative" },
@@ -521,23 +499,19 @@
                             )
                         ),
                         currentTab === "agendamentos" && h("div", { className: "flex flex-wrap justify-center gap-4" },
-                            h("div", { className: "relative" },
-                                h("i", { "data-lucide": "search", className: "w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" }),
+                            h("div", { className: "relative flex items-center" },
                                 h("input", { 
                                     type: "text", 
                                     placeholder: "PESQUISAR CLIENTE...", 
-                                    className: "bg-gray-100 pl-11 pr-4 py-3 rounded-2xl text-[10px] font-black outline-none uppercase w-64 focus:border-[#f09f0a] border border-transparent",
+                                    className: "bg-gray-100 px-4 py-3 rounded-2xl text-[10px] font-black outline-none uppercase w-64 focus:border-[#f09f0a] border border-transparent",
                                     value: searchTerm,
                                     onChange: (e) => setSearchTerm(e.target.value)
                                 })
                             ),
-                            h("button", { onClick: () => setIsModalOpen(true), className: "flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all" },
-                                h("i", { "data-lucide": "plus", className: "w-4 h-4" }), " Novo Agendamento"
-                            ),
-                            h("input", { type: "date", className: "bg-gray-100 p-3 rounded-2xl text-xs font-black outline-none uppercase", value: filterDate, onChange: (e) => setFilterDate(e.target.value) })
+                            h("button", { onClick: () => setIsModalOpen(true), className: "flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all" }, "+ Novo Agendamento"),
+                            h("input", { type: "date", className: "bg-gray-100 p-3 rounded-2xl text-xs font-black outline-none uppercase cursor-pointer", value: filterDate, onChange: (e) => setFilterDate(e.target.value) })
                         ),
                         currentTab === "financeiro" && h("div", { className: "flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-200" },
-                            h("i", { "data-lucide": "calendar", className: "w-4 h-4 text-gray-400 ml-2" }),
                             h("select", { 
                                 value: filtroMesFin, 
                                 onChange: (e) => setFiltroMesFin(Number(e.target.value)),
@@ -603,10 +577,8 @@
                                                     target: "_blank",
                                                     className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all",
                                                     title: "Enviar Mensagem no WhatsApp"
-                                                }, h("i", { "data-lucide": "message-circle", className: "w-4 h-4" })),
-                                                h("button", { onClick: () => deleteAgendamento(c.id), className: "p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" }, 
-                                                    h("i", { "data-lucide": "trash-2", className: "w-4 h-4" })
-                                                )
+                                                }, "💬"),
+                                                h("button", { onClick: () => deleteAgendamento(c.id), className: "p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all", title: "Excluir" }, "🗑️")
                                             )
                                         )
                                     ))
@@ -658,8 +630,7 @@
                                 ),
                                 h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
                                     (servicosDb || []).map((serv) => {
-                                        if (!serv) return null;
-                                        const selecionado = (servicosSelecionadosIds || []).includes(serv.id);
+                                        const selecionado = servicosSelecionadosIds.includes(serv.id);
                                         return h("div", { 
                                             key: serv.id, 
                                             onClick: () => toggleServicoManicure(serv.id),
@@ -673,9 +644,9 @@
                                                 h("p", { className: "font-black text-xs uppercase text-zinc-900" }, serv.nome),
                                                 h("p", { className: "text-xs font-bold text-[#f09f0a] mt-0.5" }, `R$ ${Number(serv.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                             ),
-                                            h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
-                                                selecionado ? 'bg-[#f09f0a] text-white shadow' : 'bg-white border border-zinc-200 text-zinc-300'
-                                            }` }, selecionado && h("i", { "data-lucide": "check", className: "w-3.5 h-3.5" }))
+                                            h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center font-black text-xs transition-all ${
+                                                selecionado ? 'bg-[#f09f0a] text-white shadow' : 'bg-white border border-zinc-200 text-transparent'
+                                            }` }, "✓")
                                         );
                                     })
                                 ),
@@ -684,7 +655,7 @@
                                         disabled: loadingManicure,
                                         onClick: calcularPagamentoManicure,
                                         className: "w-full md:w-auto px-8 py-4 bg-black text-[#f09f0a] hover:bg-[#f09f0a] hover:text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer"
-                                    }, loadingManicure ? h("i", { "data-lucide": "loader-2", className: "animate-spin w-4 h-4" }) : h("i", { "data-lucide": "refresh-cw", className: "w-4 h-4" }), "Carregar e Calcular Pagamento")
+                                    }, loadingManicure ? "Carregando..." : "Carregar e Calcular Pagamento")
                                 )
                             ),
                             h("div", { className: "bg-black text-white p-10 rounded-[35px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
@@ -700,9 +671,9 @@
                                         h("h3", { className: "text-xs font-black uppercase tracking-[0.3em] text-zinc-400" }, "Extrato Detalhado de Conferência"),
                                         h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Lista de cada atendimento que compõe este valor:")
                                     ),
-                                    h("i", { "data-lucide": "file-text", className: "w-5 h-5 text-[#f09f0a]" })
+                                    h("span", { className: "text-xl" }, "📄")
                                 ),
-                                loadingManicure ? h("div", { className: "flex justify-center py-16" }, h("i", { "data-lucide": "loader-2", className: "animate-spin text-[#f09f0a] w-8 h-8" })) :
+                                loadingManicure ? h("div", { className: "flex justify-center py-16 text-zinc-400 font-bold text-xs uppercase" }, "Carregando...") :
                                 h("div", { className: "overflow-x-auto" },
                                     h("table", { className: "w-full text-left" },
                                         h("thead", null,
@@ -715,22 +686,19 @@
                                         h("tbody", { className: "divide-y divide-zinc-50" },
                                             agendamentosFiltradosManicure.length === 0 ? h("tr", null,
                                                 h("td", { colSpan: 3, className: "p-12 text-center text-zinc-300 font-bold uppercase text-[10px]" }, "Nenhum atendimento encontrado. Clique em 'Carregar e Calcular Pagamento' acima.")
-                                            ) : agendamentosFiltradosManicure.map(item => {
-                                                if (!item) return null;
-                                                return h("tr", { key: item.id, className: "hover:bg-zinc-50/50 transition-all" },
-                                                    h("td", { className: "p-6" },
-                                                        h("div", { className: "flex items-center gap-4" },
-                                                            h("div", { className: "w-10 h-10 rounded-xl bg-amber-50 text-[#f09f0a] flex items-center justify-center font-black" }, "💅"),
-                                                            h("div", null,
-                                                                h("p", { className: "font-black text-xs uppercase text-zinc-900" }, item.servico || "Serviço"),
-                                                                h("p", { className: "text-[10px] text-zinc-500 font-bold mt-0.5" }, "Cliente: ", h("span", { className: "text-zinc-800" }, item.cliente_nome || "Não informada"))
-                                                            )
+                                            ) : agendamentosFiltradosManicure.map(item => h("tr", { key: item.id, className: "hover:bg-zinc-50/50 transition-all" },
+                                                h("td", { className: "p-6" },
+                                                    h("div", { className: "flex items-center gap-4" },
+                                                        h("div", { className: "w-10 h-10 rounded-xl bg-amber-50 text-[#f09f0a] flex items-center justify-center font-black" }, "💅"),
+                                                        h("div", null,
+                                                            h("p", { className: "font-black text-xs uppercase text-zinc-900" }, item.servico || "Serviço"),
+                                                            h("p", { className: "text-[10px] text-zinc-500 font-bold mt-0.5" }, "Cliente: ", h("span", { className: "text-zinc-800" }, item.cliente_nome || "Não informada"))
                                                         )
-                                                    ),
-                                                    h("td", { className: "p-6 text-xs font-bold text-zinc-600" }, item.data_atendimento ? item.data_atendimento.split('-').reverse().join('/') : '-'),
-                                                    h("td", { className: "p-6 text-right font-black text-sm tracking-tighter text-zinc-900" }, `R$ ${Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                );
-                                            })
+                                                    )
+                                                ),
+                                                h("td", { className: "p-6 text-xs font-bold text-zinc-600" }, item.data_atendimento ? item.data_atendimento.split('-').reverse().join('/') : '-'),
+                                                h("td", { className: "p-6 text-right font-black text-sm tracking-tighter text-zinc-900" }, `R$ ${Number(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                            ))
                                         )
                                     )
                                 )
@@ -740,23 +708,20 @@
                         h("div", { key: "f1", className: "space-y-10" },
                             h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8" },
                                 h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500" },
-                                        h("i", { "data-lucide": "arrow-up-circle", className: "w-5 h-5" }),
-                                        h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, `Receitas (${MESES[filtroMesFin-1]})`)
+                                    h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500 font-bold text-xs uppercase" },
+                                        "📈 ", `Receitas (${MESES[filtroMesFin-1]})`
                                     ),
                                     h("h2", { className: "text-4xl font-black italic tracking-tighter text-emerald-600" }, `R$ ${totalEntradasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                 ),
                                 h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-rose-500" },
-                                        h("i", { "data-lucide": "arrow-down-circle", className: "w-5 h-5" }),
-                                        h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, `Despesas (${MESES[filtroMesFin-1]})`)
+                                    h("div", { className: "flex items-center gap-3 mb-3 text-rose-500 font-bold text-xs uppercase" },
+                                        "📉 ", `Despesas (${MESES[filtroMesFin-1]})`
                                     ),
                                     h("h2", { className: "text-4xl font-black italic tracking-tighter text-rose-600" }, `R$ ${totalSaidasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                 ),
                                 h("div", { className: "p-10 rounded-[45px] border border-[#f09f0a]/40 ring-1 ring-[#f09f0a]/10 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-[#f09f0a]" },
-                                        h("i", { "data-lucide": "trending-up", className: "w-5 h-5" }),
-                                        h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, "Lucro Líquido")
+                                    h("div", { className: "flex items-center gap-3 mb-3 text-[#f09f0a] font-bold text-xs uppercase" },
+                                        "💎 ", "Lucro Líquido"
                                     ),
                                     h("h2", { className: "text-4xl font-black italic tracking-tighter text-[#f09f0a]" }, `R$ ${lucroRealFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                 )
@@ -771,40 +736,37 @@
                                         h("tbody", { className: "divide-y divide-zinc-50" },
                                             lancamentosFiltradosFin.length === 0 ? h("tr", null,
                                                 h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]" }, "Sem movimentações neste período")
-                                            ) : lancamentosFiltradosFin.map(l => {
-                                                if (!l) return null;
-                                                return h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
-                                                    h("td", { className: "p-8" },
-                                                        h("div", { className: "flex items-center gap-5" },
-                                                            h("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center ${l.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}` },
-                                                                h("i", { "data-lucide": "file-text", className: "w-5 h-5" })
-                                                            ),
-                                                            h("div", null,
-                                                                h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
-                                                                h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                    l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
-                                                                )
+                                            ) : lancamentosFiltradosFin.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                                h("td", { className: "p-8" },
+                                                    h("div", { className: "flex items-center gap-5" },
+                                                        h("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${l.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}` },
+                                                            l.tipo === 'entrada' ? '➕' : '➖'
+                                                        ),
+                                                        h("div", null,
+                                                            h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
+                                                            h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
+                                                                l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
                                                             )
                                                         )
-                                                    ),
-                                                    h("td", { className: "p-8 text-right font-black text-lg tracking-tighter" },
-                                                        h("span", { className: l.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600' },
-                                                            `${l.tipo === 'saida' ? '- ' : '+ '}R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                                        )
-                                                    ),
-                                                    h("td", { className: "p-8 text-right" },
-                                                        h("button", {
-                                                            onClick: async () => {
-                                                                if(confirm("Excluir?")) {
-                                                                    await _supabase.from("financeiro").delete().eq("id", l.id);
-                                                                    fetchFinanceiroData();
-                                                                }
-                                                            },
-                                                            className: "text-zinc-200 hover:text-rose-500 transition-all"
-                                                        }, h("i", { "data-lucide": "trash-2", className: "w-4 h-4" }))
                                                     )
-                                                );
-                                            })
+                                                ),
+                                                h("td", { className: "p-8 text-right font-black text-lg tracking-tighter" },
+                                                    h("span", { className: l.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600' },
+                                                        `${l.tipo === 'saida' ? '- ' : '+ '}R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                                    )
+                                                ),
+                                                h("td", { className: "p-8 text-right" },
+                                                    h("button", {
+                                                        onClick: async () => {
+                                                            if(confirm("Excluir?")) {
+                                                                await _supabase.from("financeiro").delete().eq("id", l.id);
+                                                                fetchFinanceiroData();
+                                                            }
+                                                        },
+                                                        className: "text-zinc-200 hover:text-rose-500 transition-all font-bold text-xs"
+                                                    }, "🗑️")
+                                                )
+                                            ))
                                         )
                                     )
                                 )
@@ -819,7 +781,6 @@
                                 ),
                                 h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
                                     h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("i", { "data-lucide": "clock", className: "text-[#f09f0a] w-6 h-6" }),
                                         h("div", { className: "flex items-center gap-3" },
                                             h("input", { type: "time", value: config.inicio, onChange: e => setConfig({...config, inicio: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none" }),
                                             h("span", { className: "font-bold text-zinc-400" }, "até"),
@@ -827,7 +788,6 @@
                                         )
                                     ),
                                     h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("i", { "data-lucide": "coffee", className: "text-[#f09f0a] w-6 h-6" }),
                                         h("input", { type: "number", value: config.intervalo, onChange: e => setConfig({...config, intervalo: parseInt(e.target.value) || 0}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-20 text-center outline-none" })
                                     ),
                                     h("button", {
@@ -844,8 +804,8 @@
                                             if (!error) alert("Configurações Salvas! 💅");
                                             else alert("Erro ao salvar no banco.");
                                         },
-                                        className: "bg-[#f09f0a] text-black p-5 rounded-full shadow-xl hover:scale-105 transition-all disabled:opacity-50"
-                                    }, h("i", { "data-lucide": "save", className: "w-7 h-7" }))
+                                        className: "bg-[#f09f0a] text-black font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
+                                    }, "Salvar Configurações")
                                 )
                             ),
                             h("div", { className: "flex flex-col lg:flex-row gap-8" },
@@ -853,11 +813,11 @@
                                 renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
                             ),
                             h("div", { className: "flex justify-center items-center gap-10 pt-6" },
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "p-5 bg-white border border-zinc-200 rounded-full shadow-md hover:bg-zinc-50 transition-colors" }, h("i", { "data-lucide": "chevron-left", className: "w-8 h-8" })),
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "p-5 bg-white border border-zinc-200 rounded-full shadow-md hover:bg-zinc-50 transition-colors" }, h("i", { "data-lucide": "chevron-right", className: "w-8 h-8" }))
+                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm" }, "← Mês Anterior"),
+                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm" }, "Próximo Mês →")
                             ),
                             h("div", { className: "bg-zinc-900 p-8 rounded-[3rem] shadow-2xl flex items-center gap-6 border-t-4 border-[#f09f0a]" },
-                                h("div", { className: "bg-[#f09f0a] p-3 rounded-2xl shadow-lg" }, h("i", { "data-lucide": "alert-circle", className: "text-black w-7 h-7" })),
+                                h("div", { className: "bg-[#f09f0a] px-4 py-3 rounded-2xl shadow-lg font-black text-lg" }, "ℹ️"),
                                 h("div", { className: "flex flex-col" },
                                     h("h4", { className: "text-white text-lg font-black uppercase tracking-widest" }, "Aviso de Gestão"),
                                     h("p", { className: "text-zinc-400 text-sm" }, "Dê um Duplo Clique em qualquer dia do calendário para abrir o painel de horários especiais e inativação de horários pontuais.")
@@ -869,9 +829,7 @@
 
                 isModalOpen && h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" },
                     h("div", { className: "bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#f09f0a] relative" },
-                        h("button", { onClick: () => setIsModalOpen(false), className: "absolute top-6 right-6 p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all" }, 
-                            h("i", { "data-lucide": "x", className: "w-6 h-6" })
-                        ),
+                        h("button", { onClick: () => setIsModalOpen(false), className: "absolute top-6 right-6 p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all" }, "✕"),
                         h("div", { className: "p-8 space-y-6" },
                             h("h2", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, "Novo ", h("span", { className: "text-[#f09f0a]" }, "Cadastro")),
                             h("div", { className: "space-y-4" },
@@ -880,8 +838,8 @@
                                     h("input", { type: "tel", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#f09f0a]", placeholder: "WHATSAPP", value: novoAgendamento.telefone, onChange: (e) => setNovoAgendamento({...novoAgendamento, telefone: e.target.value}) })
                                 ),
                                 h("div", { className: "grid grid-cols-2 gap-3" },
-                                    h("input", { type: "date", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.data, onChange: (e) => setNovoAgendamento({...novoAgendamento, data: e.target.value}) }),
-                                    h("input", { type: "time", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black", value: novoAgendamento.horario, onChange: (e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value}) })
+                                    h("input", { type: "date", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black cursor-pointer", value: novoAgendamento.data, onChange: (e) => setNovoAgendamento({...novoAgendamento, data: e.target.value}) }),
+                                    h("input", { type: "time", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black cursor-pointer", value: novoAgendamento.horario, onChange: (e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value}) })
                                 ),
                                 h("div", { className: "space-y-1" },
                                     h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Aniversário (Opcional)"),
@@ -897,22 +855,18 @@
                                 h("div", { className: "space-y-2" },
                                     h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Procedimentos"),
                                     h("div", { className: "grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scroll" },
-                                        (servicosDb || []).map(s => {
-                                            if (!s) return null;
-                                            const selecionado = (servicosSelecionados || []).some(sel => sel && sel.nome === s.nome);
-                                            return h("button", { 
-                                                key: s.nome, 
-                                                onClick: () => toggleServico(s), 
-                                                className: `p-4 rounded-xl text-[9px] font-black uppercase text-left border flex justify-between items-center ${selecionado ? 'bg-orange-50 border-[#f09f0a] text-[#f09f0a]' : 'bg-gray-50 border-gray-100 text-gray-400'}` 
-                                            }, s.nome, selecionado && h("i", { "data-lucide": "check", className: "w-3 h-3" }));
-                                        })
+                                        (servicosDb || []).map(s => h("button", { 
+                                            key: s.nome, 
+                                            onClick: () => toggleServico(s), 
+                                            className: `p-4 rounded-xl text-[9px] font-black uppercase text-left border flex justify-between items-center ${servicosSelecionados.some(sel => sel.nome === s.nome) ? 'bg-orange-50 border-[#f09f0a] text-[#f09f0a]' : 'bg-gray-50 border-gray-100 text-gray-400'}` 
+                                        }, s.nome, servicosSelecionados.some(sel => sel.nome === s.nome) && "✓"))
                                     )
                                 ),
                                 h("div", { className: "p-4 rounded-2xl flex justify-between items-center bg-black text-white" },
                                     h("span", { className: "text-[9px] font-black uppercase text-[#f09f0a]" }, "Total:"),
                                     h("span", { className: "font-black italic text-xl" }, `R$ ${totalValorNovo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
                                 ),
-                                h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl" }, "Confirmar")
+                                h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
                             )
                         )
                     )
@@ -920,7 +874,7 @@
 
                 isFinanceiroModalOpen && h("div", { className: "fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" },
                     h("div", { className: "bg-white w-full max-w-md rounded-[45px] p-12 shadow-2xl relative" },
-                        h("button", { onClick: () => setIsFinanceiroModalOpen(false), className: "absolute top-10 right-10 text-zinc-300 hover:text-black" }, h("i", { "data-lucide": "x", className: "w-7 h-7" })),
+                        h("button", { onClick: () => setIsFinanceiroModalOpen(false), className: "absolute top-10 right-10 text-zinc-300 hover:text-black font-black" }, "✕"),
                         h("h3", { className: "text-sm font-black uppercase tracking-[0.4em] mb-10 text-zinc-800" }, "Lançamento Financeiro"),
                         h("form", { onSubmit: handleSaveFinanceiro, className: "space-y-6" },
                             h("input", { required: true, placeholder: "DESCRIÇÃO", className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-xs font-bold outline-none uppercase", value: formDataFinanceiro.item, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, item: e.target.value}) }),
@@ -932,7 +886,7 @@
                                 )
                             ),
                             h("input", { required: true, placeholder: "CATEGORIA", className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-xs font-bold outline-none uppercase", value: formDataFinanceiro.categoria, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, categoria: e.target.value}) }),
-                            h("button", { type: "submit", className: "w-full bg-black text-white py-6 rounded-full font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-[#f09f0a] transition-all" }, "Confirmar Lançamento")
+                            h("button", { type: "submit", className: "w-full bg-black text-white py-6 rounded-full font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-[#f09f0a] transition-all cursor-pointer" }, "Confirmar Lançamento")
                         )
                     )
                 ),
@@ -944,18 +898,18 @@
                                 h("h2", { className: "font-black text-zinc-900 uppercase text-[10px] tracking-[0.2em]" }, "Gestão do Dia & Horários"),
                                 h("span", { className: "text-zinc-400 font-bold text-xs" }, selectedDateISO)
                             ),
-                            h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors" }, h("i", { "data-lucide": "x", className: "w-5 h-5" }))
+                            h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors font-black" }, "✕")
                         ),
                         
                         h("div", { className: "bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex items-center justify-between" },
                             h("div", { className: "flex flex-col" },
                                 h("span", { className: "text-[10px] font-black uppercase text-zinc-900" }, "Estado do Dia Inteiro"),
-                                h("span", { className: "text-[9px] text-zinc-500" }, (bloqueios || []).includes(selectedDateISO) ? "O dia está bloqueado" : "O dia está aberto")
+                                h("span", { className: "text-[9px] text-zinc-500" }, bloqueios.includes(selectedDateISO) ? "O dia está bloqueado" : "O dia está aberto")
                             ),
                             h("button", {
                                 onClick: toggleBloqueioDiaModal,
-                                className: `px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${(bloqueios || []).includes(selectedDateISO) ? 'bg-red-500 text-white shadow' : 'bg-zinc-200 text-zinc-700'}`
-                            }, (bloqueios || []).includes(selectedDateISO) ? "Desbloquear Dia" : "Bloquear Dia Inteiro")
+                                className: `px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer ${bloqueios.includes(selectedDateISO) ? 'bg-red-500 text-white shadow' : 'bg-zinc-200 text-zinc-700'}`
+                            }, bloqueios.includes(selectedDateISO) ? "Desbloquear Dia" : "Bloquear Dia Inteiro")
                         ),
 
                         h("div", { className: "space-y-4" },
@@ -963,17 +917,17 @@
                             h("div", { className: "grid grid-cols-2 gap-3" },
                                 h("div", { className: "flex flex-col gap-1" },
                                     h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Início"),
-                                    h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a]" })
+                                    h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] cursor-pointer" })
                                 ),
                                 h("div", { className: "flex flex-col gap-1" },
                                     h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Fim"),
-                                    h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a]" })
+                                    h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#f09f0a] cursor-pointer" })
                                 )
                             ),
                             h("button", { 
                                 onClick: salvarExcecao, 
                                 disabled: loading,
-                                className: "w-full bg-zinc-900 text-white font-black py-3 rounded-xl uppercase text-[10px] tracking-[0.1em] hover:bg-[#f09f0a] hover:text-black transition-all"
+                                className: "w-full bg-zinc-900 text-white font-black py-3 rounded-xl uppercase text-[10px] tracking-[0.1em] hover:bg-[#f09f0a] hover:text-black transition-all cursor-pointer"
                             }, 'Salvar Expediente do Dia')
                         ),
 
@@ -984,12 +938,12 @@
                             ),
                             h("div", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
                                 gerarSlotsDoDia().map(slot => {
-                                    const inativados = (horariosInativadosMap || {})[selectedDateISO] || [];
+                                    const inativados = horariosInativadosMap[selectedDateISO] || [];
                                     const isInativado = inativados.includes(slot);
                                     return h("button", {
                                         key: slot,
                                         onClick: () => toggleHorarioPontual(slot),
-                                        className: `p-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border ${
+                                        className: `p-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border cursor-pointer ${
                                             isInativado 
                                                 ? 'bg-red-600 text-white border-red-700 line-through shadow-md scale-95' 
                                                 : 'bg-white text-zinc-800 border-zinc-200 hover:border-[#f09f0a]'
@@ -1004,7 +958,7 @@
 
                         h("button", { 
                             onClick: () => setIsConfigModalOpen(false),
-                            className: "w-full bg-[#f09f0a] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl"
+                            className: "w-full bg-[#f09f0a] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl cursor-pointer"
                         }, "Concluir")
                     )
                 ),
@@ -1017,11 +971,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(h(Dashboard));
-        setTimeout(() => {
-            if (window.lucide && typeof window.lucide.createIcons === 'function') {
-                window.lucide.createIcons();
-            }
-        }, 500);
     </script>
 </body>
 </html>
