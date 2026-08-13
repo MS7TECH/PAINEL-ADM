@@ -104,6 +104,7 @@
             const [formDataFinanceiro, setFormDataFinanceiro] = useState({ item: "", categoria: "", valor: "", tipo: "entrada" });
 
             const aplicarMascaraAniversario = (v) => {
+                if (!v) return "";
                 v = v.replace(/\D/g, "");
                 if (v.length > 4) v = v.substring(0, 4);
                 if (v.length > 2) {
@@ -172,7 +173,11 @@
             }, [isAuth, filterDate, fetchAgendaConfigData]);
 
             useEffect(() => {
-                lucide.createIcons();
+                try {
+                    lucide.createIcons();
+                } catch(e) {
+                    console.error(e);
+                }
             }, [clientes, isModalOpen, isConfigModalOpen, isAuth, currentTab, viewDate, mesesLiberados, bloqueios, excecoes, horariosInativadosMap, agendamentosManicure, lancamentosFinanceiros, isFinanceiroModalOpen]);
 
             async function fetchServicos() {
@@ -284,7 +289,7 @@
                 const servicosMarcados = servicosDb.filter(s => servicosSelecionadosIds.includes(s.id));
                 const batePorId = item.servico_id && servicosSelecionadosIds.includes(item.servico_id);
                 const batePorNome = !item.servico_id && item.servico && servicosMarcados.some(
-                    s => s.nome.trim().toLowerCase() === item.servico?.trim().toLowerCase()
+                    s => s.nome && item.servico && s.nome.trim().toLowerCase() === item.servico.trim().toLowerCase()
                 );
                 return Boolean(batePorId || batePorNome);
             });
@@ -294,7 +299,7 @@
             // Funções da Gestão Financeira
             const handleSaveFinanceiro = async (e) => {
                 e.preventDefault();
-                const valorNumerico = parseFloat(formDataFinanceiro.valor.replace(",", ".")) || 0;
+                const valorNumerico = parseFloat(String(formDataFinanceiro.valor).replace(",", ".")) || 0;
                 const payload = {
                     item: formDataFinanceiro.item.toUpperCase(),
                     servico: formDataFinanceiro.item.toUpperCase(),
@@ -317,7 +322,9 @@
 
             const lancamentosFiltradosFin = lancamentosFinanceiros.filter(l => {
                 if (!l.data) return false;
-                const [ano, mes] = l.data.split('-');
+                const partes = l.data.split('-');
+                if (partes.length < 2) return false;
+                const [ano, mes] = partes;
                 return Number(mes) === filtroMesFin && Number(ano) === filtroAnoFin;
             });
 
@@ -429,7 +436,7 @@
                 const firstDay = new Date(year, month, 1).getDay();
                 const monthName = date.toLocaleString('pt-BR', { month: 'long' });
 
-                return h("div", { className: `bg-white p-6 rounded-[2.5rem] border-2 shadow-sm flex-1 transition-all ${isLiberado ? 'border-[#f09f0a]/30' : 'border-zinc-100 opacity-80'}` },
+                return h("div", { key: mesAnoKey, className: `bg-white p-6 rounded-[2.5rem] border-2 shadow-sm flex-1 transition-all ${isLiberado ? 'border-[#f09f0a]/30' : 'border-zinc-100 opacity-80'}` },
                     h("div", { className: "flex justify-between items-center mb-6 border-b border-zinc-100 pb-4" },
                         h("h3", { className: "font-black text-zinc-900 uppercase tracking-[0.2em] text-sm" }, `${monthName} ${year}`),
                         h("button", {
@@ -472,7 +479,7 @@
             };
 
             const clientesFiltrados = clientes.filter(c => 
-                c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
+                c.cliente_nome && c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
             );
 
             if (!isAuth) return h(LoginPortal, { onLogin: () => setIsAuth(true) });
@@ -544,7 +551,7 @@
 
                 h("main", { className: "max-w-7xl mx-auto w-full p-8 space-y-8" },
                     currentTab === "agendamentos" ? [
-                        h("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
+                        h("div", { key: "s1", className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                             h("div", { className: "bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100" },
                                 h("p", { className: "text-[9px] font-black text-gray-400 uppercase" }, "Agendados no filtro"),
                                 h("p", { className: "text-3xl font-black italic" }, stats.total)
@@ -554,7 +561,7 @@
                                 h("p", { className: "text-2xl font-black italic" }, `R$ ${stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
                             )
                         ),
-                        h("div", { className: "bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll" },
+                        h("div", { key: "s2", className: "bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll" },
                             h("table", { className: "w-full text-left min-w-[750px]" },
                                 h("thead", { className: "bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest" },
                                     h("tr", null,
@@ -585,7 +592,7 @@
                                         h("td", { className: "px-8 py-6 text-center" }, 
                                             h("div", { className: "flex justify-center gap-2" },
                                                 h("a", { 
-                                                    href: `https://api.whatsapp.com/send?phone=55${c.telefone?.replace(/\D/g, '')}&text=${encodeURIComponent(`Olá ${c.cliente_nome}, tudo bem? Passando para confirmar seu agendamento na Rivi Silva Esmalteria para o dia ${c.data_atendimento?.split('-').reverse().join('/')} às ${c.horario}. Te aguardo! 💅`)}`, 
+                                                    href: `https://api.whatsapp.com/send?phone=55${c.telefone ? c.telefone.replace(/\D/g, '') : ''}&text=${encodeURIComponent(`Olá ${c.cliente_nome}, tudo bem? Passando para confirmar seu agendamento na Rivi Silva Esmalteria para o dia ${c.data_atendimento ? c.data_atendimento.split('-').reverse().join('/') : ''} às ${c.horario}. Te aguardo! 💅`)}`, 
                                                     target: "_blank",
                                                     className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all",
                                                     title: "Enviar Mensagem no WhatsApp"
@@ -599,10 +606,10 @@
                                 )
                             )
                         ),
-                        clientesFiltrados.length === 0 && h("div", { className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
+                        clientesFiltrados.length === 0 && h("div", { key: "s3", className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
                     ] : currentTab === "manicure" ? [
                         // ABA PAINEL DA MANICURE
-                        h("div", { className: "space-y-8" },
+                        h("div", { key: "m1", className: "space-y-8" },
                             h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[35px] shadow-sm border border-zinc-100" },
                                 h("div", null,
                                     h("p", { className: "text-[10px] font-black tracking-[0.4em] uppercase mb-1 text-[#f09f0a]" }, "Cálculo de Pagamento"),
@@ -721,7 +728,7 @@
                         )
                     ] : currentTab === "financeiro" ? [
                         // ABA GESTÃO FINANCEIRA (FLUXO ESTRATÉGICO)
-                        h("div", { className: "space-y-10" },
+                        h("div", { key: "f1", className: "space-y-10" },
                             h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8" },
                                 h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
                                     h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500" },
@@ -764,7 +771,7 @@
                                                         h("div", null,
                                                             h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
                                                             h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data?.split('-').reverse().join('/')
+                                                                l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
                                                             )
                                                         )
                                                     )
@@ -793,7 +800,7 @@
                         )
                     ] : [
                         // ABA CONFIGURAR AGENDA
-                        h("div", { className: "space-y-8" },
+                        h("div", { key: "c1", className: "space-y-8" },
                             h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
                                 h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
                                     h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#f09f0a]" }, "Rivi Silva"), " 💅"),
