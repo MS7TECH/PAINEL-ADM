@@ -1,229 +1,180 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel Rivi Silva & Manicure</title>
-    <!-- Tailwind CSS CDN para estilização moderna -->
+    <title>Painel Rivi</title>
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Montserrat', sans-serif; background-color: #f8f8f8; }
+        .gold-bg { background: linear-gradient(135deg, #bf953f 0%, #a67c00 100%); }
+        .gold-text { color: #bf953f; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-900">
+<body class="antialiased">
+    <div id="root"></div>
 
-    <!-- Container Principal -->
-    <div class="flex h-screen overflow-hidden">
-
-        <!-- Sidebar / Menu Lateral -->
-        <aside class="w-64 bg-slate-900 text-white flex flex-col justify-between hidden md:flex">
-            <div class="p-5">
-                <h1 class="text-xl font-bold tracking-wider text-indigo-400 mb-6">RIVI SILVA</h1>
-                <nav class="space-y-2">
-                    <button onclick="mudarAba('principal')" id="btn-principal" class="w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition">Dashboard Principal</button>
-                    <button onclick="mudarAba('manicure')" id="btn-manicure" class="w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition">Painel Manicure</button>
-                </nav>
-            </div>
-            <div class="p-5 text-xs text-gray-500 border-t border-slate-800">
-                Sistema v2.0 &bull; Todos os direitos reservados
-            </div>
-        </aside>
-
-        <!-- Conteúdo Principal -->
-        <div class="flex-1 flex flex-col overflow-y-auto">
-            
-            <!-- Topbar / Cabeçalho -->
-            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6">
-                <h2 id="titulo-pagina" class="text-lg font-semibold text-gray-800">Dashboard Principal</h2>
-                <div class="flex items-center space-x-3">
-                    <span class="text-sm font-medium text-gray-600">Olá, Rivi</span>
-                    <div class="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center font-bold justify-center">RS</div>
-                </div>
-            </header>
-
-            <!-- Área Dinâmica das Abas -->
-            <main class="p-6">
-
-                <!-- ABA 1: PRINCIPAL -->
-                <section id="aba-principal" class="space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium">Faturamento Total</p>
-                            <h3 class="text-2xl font-bold text-gray-800 mt-1">R$ 12.450,00</h3>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium">Clientes Atendidos</p>
-                            <h3 class="text-2xl font-bold text-gray-800 mt-1">148</h3>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium">Serviços Pendentes</p>
-                            <h3 class="text-2xl font-bold text-gray-800 mt-1">3</h3>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                        <h3 class="text-md font-bold text-gray-800 mb-4">Visão Geral do Sistema</h3>
-                        <p class="text-sm text-gray-600">Bem-vinda ao painel unificado. Utilize o menu lateral para navegar até o Painel Manicure e gerenciar comissões, períodos e serviços detalhados.</p>
-                    </div>
-                </section>
-
-                <!-- ABA 2: PAINEL MANICURE -->
-                <section id="aba-manicure" class="space-y-6 hidden">
-                    
-                    <!-- Filtros e Seleção -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                        <h3 class="text-md font-bold text-gray-800 mb-4">Filtros do Painel Manicure</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Data Início</label>
-                                <input type="date" id="filtro-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Data Fim</label>
-                                <input type="date" id="filtro-fim" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">Serviço</label>
-                                <select id="filtro-servico" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
-                                    <option value="todos">Todos os Serviços</option>
-                                    <option value="Manicure Simples">Manicure Simples</option>
-                                    <option value="Pedicure Simples">Pedicure Simples</option>
-                                    <option value="Combo Pé e Mão">Combo Pé e Mão</option>
-                                    <option value="Blindagem">Blindagem</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button onclick="filtrarManicure()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition">Aplicar Filtros</button>
-                    </div>
-
-                    <!-- Resumo / Valor Total -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="bg-indigo-900 text-white p-6 rounded-xl shadow-sm flex flex-col justify-between">
-                            <p class="text-sm text-indigo-200 font-medium">Valor Total Acumulado (Período)</p>
-                            <h3 id="resultado-total" class="text-3xl font-extrabold mt-2">R$ 0,00</h3>
-                            <span class="text-xs text-indigo-300 mt-4">* Calculado com base nos filtros selecionados</span>
-                        </div>
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between">
-                            <p class="text-sm text-gray-500 font-medium">Total de Atendimentos no Filtro</p>
-                            <h3 id="resultado-qtd" class="text-3xl font-extrabold text-gray-800 mt-2">0</h3>
-                            <span class="text-xs text-gray-400 mt-4">Lançamentos correspondentes</span>
-                        </div>
-                    </div>
-
-                    <!-- Tabela de Lançamentos -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div class="p-6 border-b border-gray-200">
-                            <h3 class="text-md font-bold text-gray-800">Lançamentos Detalhados</h3>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse text-sm">
-                                <thead>
-                                    <tr class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
-                                        <th class="p-4">Data</th>
-                                        <th class="p-4">Cliente</th>
-                                        <th class="p-4">Serviço</th>
-                                        <th class="p-4">Valor (R$)</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tabela-lancamentos" class="divide-y divide-gray-200 text-gray-700">
-                                    <!-- Inserido via JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </section>
-
-            </main>
-        </div>
-    </div>
-
-    <!-- Scripts de Controle -->
     <script>
-        // Banco de dados simulado de lançamentos da manicure
-        const dadosManicure = [
-            { data: '2026-06-01', cliente: 'Ana Souza', servico: 'Combo Pé e Mão', valor: 90.00 },
-            { data: '2026-06-03', cliente: 'Carla Dias', servico: 'Manicure Simples', valor: 45.00 },
-            { data: '2026-06-05', cliente: 'Mariana Lima', servico: 'Blindagem', valor: 120.00 },
-            { data: '2026-06-10', cliente: 'Juliana Costa', servico: 'Pedicure Simples', valor: 50.00 },
-            { data: '2026-06-15', cliente: 'Fernanda Rocha', servico: 'Combo Pé e Mão', valor: 90.00 },
-            { data: '2026-06-18', cliente: 'Beatriz Alves', servico: 'Manicure Simples', valor: 45.00 }
-        ];
+        const { useState, useEffect } = React;
+        const h = React.createElement;
 
-        // Função para alternar entre abas
-        function mudarAba(aba) {
-            const abaPrincipal = document.getElementById('aba-principal');
-            const abaManicure = document.getElementById('aba-manicure');
-            const btnPrincipal = document.getElementById('btn-principal');
-            const btnManicure = document.getElementById('btn-manicure');
-            const tituloPagina = document.getElementById('titulo-pagina');
+        // Configuração do Supabase (mesma credencial da manicure)
+        const SUPABASE_URL = 'https://rahubkowehwtvditbhlx.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_wKbs4gYVURdIR6Cafm8qFA_tUZZTIKo';
+        const dbRivi = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-            if (aba === 'principal') {
-                abaPrincipal.classList.remove('hidden');
-                abaManicure.classList.add('hidden');
-                btnPrincipal.className = "w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition";
-                btnManicure.className = "w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition";
-                tituloPagina.innerText = "Dashboard Principal";
-            } else {
-                abaPrincipal.classList.add('hidden');
-                abaManicure.classList.remove('hidden');
-                btnManicure.className = "w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition";
-                btnPrincipal.className = "w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition";
-                tituloPagina.innerText = "Painel Manicure";
-                
-                // Carrega dados iniciais na aba manicure se estiver vazia
-                if(document.getElementById('tabela-lancamentos').innerHTML === '') {
-                    carregarTabela(dadosManicure);
-                }
-            }
-        }
-
-        // Função para carregar a tabela na interface
-        function carregarTabela(lista) {
-            const tbody = document.getElementById('tabela-lancamentos');
-            tbody.innerHTML = '';
+        function App() {
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [password, setPassword] = useState('');
+            const [view, setView] = useState('manicure'); // 'manicure' ou outras abas do Rivi
             
-            let totalSoma = 0;
+            // Estados para o Relatório Manicure
+            const [registrosManicure, setRegistrosManicure] = useState([]);
+            const [dataInicio, setDataInicio] = useState('');
+            const [dataFim, setDataFim] = useState('');
+            const [loading, setLoading] = useState(false);
 
-            if (lista.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhum registro encontrado para este filtro.</td></tr>`;
-                document.getElementById('resultado-total').innerText = 'R$ 0,00';
-                document.getElementById('resultado-qtd').innerText = '0';
-                return;
+            useEffect(() => {
+                if (isLoggedIn && dbRivi) {
+                    carregarRelatorioManicure();
+                }
+            }, [isLoggedIn]);
+
+            const carregarRelatorioManicure = async () => {
+                if (!dbRivi) return;
+                setLoading(true);
+                try {
+                    let query = dbRivi
+                        .from('registros_manicure')
+                        .select('*')
+                        .order('data_atendimento', { ascending: false });
+
+                    const { data, error } = await query;
+
+                    if (error) {
+                        console.error('Erro ao buscar relatórios:', error);
+                    } else {
+                        setRegistrosManicure(data || []);
+                    }
+                } catch (e) {
+                    console.error('Erro inesperado:', e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            // Tela de Login do Painel Rivi
+            if (!isLoggedIn) {
+                return h("div", { className: "min-h-screen flex items-center justify-center p-4" },
+                    h("div", { className: "bg-white p-8 rounded-[2rem] shadow-xl w-full max-w-sm text-center" },
+                        h("h1", { className: "text-2xl font-black mb-6" }, "Painel ", h("span", { className: "gold-text" }, "Rivi")),
+                        h("input", { 
+                            type: "password", 
+                            placeholder: "Senha de Acesso", 
+                            value: password,
+                            onChange: (e) => setPassword(e.target.value), 
+                            className: "w-full bg-zinc-50 p-4 rounded-xl mb-4 border border-zinc-200 text-center" 
+                        }),
+                        h("button", { 
+                            onClick: () => password === '1234' ? setIsLoggedIn(true) : alert('Senha incorreta!'), 
+                            className: "w-full gold-bg text-white p-4 rounded-xl font-black cursor-pointer" 
+                        }, "Entrar")
+                    )
+                );
             }
 
-            lista.forEach(item => {
-                totalSoma += item.valor;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="p-4">${item.data}</td>
-                    <td class="p-4 font-medium">${item.cliente}</td>
-                    <td class="p-4">${item.servico}</td>
-                    <td class="p-4 font-semibold text-indigo-600">R$ ${item.valor.toFixed(2)}</td>
-                `;
-                tbody.appendChild(tr);
+            // Filtragem por período (Data Inicial e Data Final)
+            const registrosFiltrados = registrosManicure.filter(item => {
+                if (!item.data_atendimento) return true;
+                if (dataInicio && item.data_atendimento < dataInicio) return false;
+                if (dataFim && item.data_atendimento > dataFim) return false;
+                return true;
             });
 
-            document.getElementById('resultado-total').innerText = `R$ ${totalSoma.toFixed(2)}`;
-            document.getElementById('resultado-qtd').innerText = lista.length;
+            // Cálculo do valor total do período selecionado
+            const valorTotalPeriodo = registrosFiltrados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+
+            return h("div", { className: "min-h-screen p-4 max-w-2xl mx-auto" },
+                // Menu de navegação do Painel Rivi
+                h("div", { className: "flex gap-2 mb-6" },
+                    h("button", { 
+                        onClick: () => setView('manicure'), 
+                        className: `flex-1 p-3 rounded-xl font-bold transition-all ${view === 'manicure' ? 'gold-bg text-white' : 'bg-white shadow-sm'}` 
+                    }, "Relatório Manicure")
+                ),
+
+                // Conteúdo da Aba Relatório Manicure
+                view === 'manicure' && h("div", { className: "bg-white p-6 md:p-8 rounded-[2rem] shadow-xl space-y-6" },
+                    h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
+                        h("h1", { className: "text-2xl font-black" }, "Relatório de ", h("span", { className: "gold-text" }, "Manicure")),
+                        h("button", { 
+                            onClick: carregarRelatorioManicure, 
+                            className: "text-xs bg-zinc-100 hover:bg-zinc-200 font-bold px-4 py-2 rounded-lg transition-all" 
+                        }, "Atualizar Dados")
+                    ),
+
+                    // Filtros de Período
+                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-50 p-4 rounded-2xl border border-zinc-100" },
+                        h("div", {},
+                            h("label", { className: "block text-xs font-bold text-zinc-500 mb-1" }, "Data Inicial"),
+                            h("input", { 
+                                type: "date", 
+                                value: dataInicio, 
+                                onChange: (e) => setDataInicio(e.target.value), 
+                                className: "w-full bg-white p-3 rounded-xl border border-zinc-200 text-sm" 
+                            })
+                        ),
+                        h("div", {},
+                            h("label", { className: "block text-xs font-bold text-zinc-500 mb-1" }, "Data Final"),
+                            h("input", { 
+                                type: "date", 
+                                value: dataFim, 
+                                onChange: (e) => setDataFim(e.target.value), 
+                                className: "w-full bg-white p-3 rounded-xl border border-zinc-200 text-sm" 
+                            })
+                        )
+                    ),
+
+                    // Card de Valor Total por Período
+                    h("div", { className: "gold-bg text-white p-6 rounded-2xl flex justify-between items-center shadow-md" },
+                        h("div", {},
+                            h("p", { className: "text-xs uppercase font-bold tracking-wider opacity-90" }, "Total no Período"),
+                            h("p", { className: "text-3xl font-black mt-1" }, `R$ ${valorTotalPeriodo.toFixed(2)}`)
+                        ),
+                        h("div", { className: "text-right" },
+                            h("p", { className: "text-xs opacity-90 font-medium" }, `${registrosFiltrados.length} atendimento(s)`)
+                        )
+                    ),
+
+                    // Lista de Lançamentos
+                    loading ? h("p", { className: "text-center text-zinc-400 py-8" }, "Carregando lançamentos...") :
+                    registrosFiltrados.length === 0 ? h("p", { className: "text-center text-zinc-400 py-8" }, "Nenhum atendimento encontrado para o período selecionado.") :
+                    h("div", { className: "space-y-3 max-h-[50vh] overflow-y-auto pr-1" },
+                        registrosFiltrados.map(item => 
+                            h("div", { key: item.id || item.criado_em, className: "p-4 bg-zinc-50 rounded-xl border border-zinc-100 flex justify-between items-center" },
+                                h("div", {},
+                                    h("p", { className: "font-bold text-zinc-800" }, item.cliente),
+                                    h("p", { className: "text-xs text-zinc-500 mt-0.5" }, `${item.data_atendimento} • ${item.servico}`)
+                                ),
+                                h("div", { className: "text-right" },
+                                    h("p", { className: "font-black gold-text text-base" }, `R$ ${Number(item.valor).toFixed(2)}`)
+                                )
+                            )
+                        )
+                    )
+                )
+            );
         }
 
-        // Função de filtro do painel manicure
-        function filtrarManicure() {
-            const dataInicio = document.getElementById('filtro-inicio').value;
-            const dataFim = document.getElementById('filtro-fim').value;
-            const servicoFiltro = document.getElementById('filtro-servico').value;
-
-            let filtrados = dadosManicure.filter(item => {
-                let atendeData = true;
-                let atendeServico = true;
-
-                if (dataInicio && item.data < dataInicio) atendeData = false;
-                if (dataFim && item.data > dataFim) atendeData = false;
-                if (servicoFiltro !== 'todos' && item.servico !== servicoFiltro) atendeServico = false;
-
-                return atendeData && atendeServico;
-            });
-
-            carregarTabela(filtrados);
-        }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(h(App));
     </script>
 </body>
 </html>
