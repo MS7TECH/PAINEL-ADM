@@ -1,923 +1,229 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Admin | Rivi Silva</title>
-    
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Painel Rivi Silva & Manicure</title>
+    <!-- Tailwind CSS CDN para estilização moderna -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
-
-    <style>
-        body { font-family: 'Montserrat', sans-serif; background-color: #f8f8f8; }
-        .gold-bg { background: linear-gradient(135deg, #bf953f 0%, #a67c00 100%); }
-        .gold-text { color: #bf953f; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #bf953f; border-radius: 10px; }
-    </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-gray-100 font-sans text-gray-900">
 
+    <!-- Container Principal -->
+    <div class="flex h-screen overflow-hidden">
+
+        <!-- Sidebar / Menu Lateral -->
+        <aside class="w-64 bg-slate-900 text-white flex flex-col justify-between hidden md:flex">
+            <div class="p-5">
+                <h1 class="text-xl font-bold tracking-wider text-indigo-400 mb-6">RIVI SILVA</h1>
+                <nav class="space-y-2">
+                    <button onclick="mudarAba('principal')" id="btn-principal" class="w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition">Dashboard Principal</button>
+                    <button onclick="mudarAba('manicure')" id="btn-manicure" class="w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition">Painel Manicure</button>
+                </nav>
+            </div>
+            <div class="p-5 text-xs text-gray-500 border-t border-slate-800">
+                Sistema v2.0 &bull; Todos os direitos reservados
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <div class="flex-1 flex flex-col overflow-y-auto">
+            
+            <!-- Topbar / Cabeçalho -->
+            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6">
+                <h2 id="titulo-pagina" class="text-lg font-semibold text-gray-800">Dashboard Principal</h2>
+                <div class="flex items-center space-x-3">
+                    <span class="text-sm font-medium text-gray-600">Olá, Rivi</span>
+                    <div class="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center font-bold justify-center">RS</div>
+                </div>
+            </header>
+
+            <!-- Área Dinâmica das Abas -->
+            <main class="p-6">
+
+                <!-- ABA 1: PRINCIPAL -->
+                <section id="aba-principal" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium">Faturamento Total</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1">R$ 12.450,00</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium">Clientes Atendidos</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1">148</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium">Serviços Pendentes</p>
+                            <h3 class="text-2xl font-bold text-gray-800 mt-1">3</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-md font-bold text-gray-800 mb-4">Visão Geral do Sistema</h3>
+                        <p class="text-sm text-gray-600">Bem-vinda ao painel unificado. Utilize o menu lateral para navegar até o Painel Manicure e gerenciar comissões, períodos e serviços detalhados.</p>
+                    </div>
+                </section>
+
+                <!-- ABA 2: PAINEL MANICURE -->
+                <section id="aba-manicure" class="space-y-6 hidden">
+                    
+                    <!-- Filtros e Seleção -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-md font-bold text-gray-800 mb-4">Filtros do Painel Manicure</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Data Início</label>
+                                <input type="date" id="filtro-inicio" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Data Fim</label>
+                                <input type="date" id="filtro-fim" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">Serviço</label>
+                                <select id="filtro-servico" class="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                                    <option value="todos">Todos os Serviços</option>
+                                    <option value="Manicure Simples">Manicure Simples</option>
+                                    <option value="Pedicure Simples">Pedicure Simples</option>
+                                    <option value="Combo Pé e Mão">Combo Pé e Mão</option>
+                                    <option value="Blindagem">Blindagem</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button onclick="filtrarManicure()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition">Aplicar Filtros</button>
+                    </div>
+
+                    <!-- Resumo / Valor Total -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-indigo-900 text-white p-6 rounded-xl shadow-sm flex flex-col justify-between">
+                            <p class="text-sm text-indigo-200 font-medium">Valor Total Acumulado (Período)</p>
+                            <h3 id="resultado-total" class="text-3xl font-extrabold mt-2">R$ 0,00</h3>
+                            <span class="text-xs text-indigo-300 mt-4">* Calculado com base nos filtros selecionados</span>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between">
+                            <p class="text-sm text-gray-500 font-medium">Total de Atendimentos no Filtro</p>
+                            <h3 id="resultado-qtd" class="text-3xl font-extrabold text-gray-800 mt-2">0</h3>
+                            <span class="text-xs text-gray-400 mt-4">Lançamentos correspondentes</span>
+                        </div>
+                    </div>
+
+                    <!-- Tabela de Lançamentos -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="p-6 border-b border-gray-200">
+                            <h3 class="text-md font-bold text-gray-800">Lançamentos Detalhados</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-gray-50 text-gray-600 uppercase text-xs tracking-wider">
+                                        <th class="p-4">Data</th>
+                                        <th class="p-4">Cliente</th>
+                                        <th class="p-4">Serviço</th>
+                                        <th class="p-4">Valor (R$)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabela-lancamentos" class="divide-y divide-gray-200 text-gray-700">
+                                    <!-- Inserido via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts de Controle -->
     <script>
-        const { useState, useEffect, useCallback } = React;
-        const h = React.createElement;
-
-        const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
-        const supabaseKey = 'sb_publishable_wKbs4gYVURdIR6Cafm8qFA_tUZZTIKo'; 
-        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        const palette = {
-            gold: "#bf953f",
-            bg: "#f8f8f8",
-            white: "#ffffff",
-            black: "#000000"
-        };
-
-        const MESES = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        // Banco de dados simulado de lançamentos da manicure
+        const dadosManicure = [
+            { data: '2026-06-01', cliente: 'Ana Souza', servico: 'Combo Pé e Mão', valor: 90.00 },
+            { data: '2026-06-03', cliente: 'Carla Dias', servico: 'Manicure Simples', valor: 45.00 },
+            { data: '2026-06-05', cliente: 'Mariana Lima', servico: 'Blindagem', valor: 120.00 },
+            { data: '2026-06-10', cliente: 'Juliana Costa', servico: 'Pedicure Simples', valor: 50.00 },
+            { data: '2026-06-15', cliente: 'Fernanda Rocha', servico: 'Combo Pé e Mão', valor: 90.00 },
+            { data: '2026-06-18', cliente: 'Beatriz Alves', servico: 'Manicure Simples', valor: 45.00 }
         ];
 
-        const LoginPortal = ({ onLogin }) => {
-            const [pass, setPass] = useState("");
-            const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
-            return h("div", { className: "min-h-screen flex items-center justify-center bg-[#f8f8f8] p-4" },
-                h("div", { className: "bg-white p-10 rounded-[2.5rem] border border-zinc-200 w-full max-w-md text-center shadow-xl" },
-                    h("div", { className: "mb-6 flex justify-center" },
-                        h("img", { src: "logo.png", alt: "Logo", className: "w-24 h-24 object-contain" })
-                    ),
-                    h("h2", { className: "text-zinc-900 font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
-                    h("input", { 
-                        type: "password", 
-                        placeholder: "DIGITE A SENHA", 
-                        className: "w-full p-5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 text-center mb-6 outline-none focus:border-[#bf953f]", 
-                        value: pass, 
-                        onChange: (e) => setPass(e.target.value), 
-                        onKeyPress: (e) => e.key === 'Enter' && handleLogin() 
-                    }),
-                    h("button", { onClick: handleLogin, className: "w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl shadow-md cursor-pointer" }, "Entrar")
-                )
-            );
-        };
+        // Função para alternar entre abas
+        function mudarAba(aba) {
+            const abaPrincipal = document.getElementById('aba-principal');
+            const abaManicure = document.getElementById('aba-manicure');
+            const btnPrincipal = document.getElementById('btn-principal');
+            const btnManicure = document.getElementById('btn-manicure');
+            const tituloPagina = document.getElementById('titulo-pagina');
 
-        function Dashboard() {
-            const [isAuth, setIsAuth] = useState(false);
-            const [currentTab, setCurrentTab] = useState("agendamentos");
-            const [loading, setLoading] = useState(true);
-            const [clientes, setClientes] = useState([]);
-            const [searchTerm, setSearchTerm] = useState("");
-            const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
-            const [isModalOpen, setIsModalOpen] = useState(false);
-            const [servicosDb, setServicosDb] = useState([]);
-            const [servicosSelecionados, setServicosSelecionados] = useState([]);
-            const [novoAgendamento, setNovoAgendamento] = useState({ nome: "", telefone: "", data: new Date().toISOString().split('T')[0], horario: "08:00", aniversario: "" });
-            const [viewDate, setViewDate] = useState(new Date());
-            const [bloqueios, setBloqueios] = useState([]);
-            const [mesesLiberados, setMesesLiberados] = useState([]);
-            const [excecoes, setExcecoes] = useState({});
-            const [config, setConfig] = useState({ inicio: '09:00', fim: '18:00', intervalo: 40 });
-            const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-            const [selectedDateISO, setSelectedDateISO] = useState(null);
-            const [tempInicio, setTempInicio] = useState('');
-            const [tempFim, setTempFim] = useState('');
-            const [horariosInativadosMap, setHorariosInativadosMap] = useState({});
-
-            const [servicosManicure, setServicosManicure] = useState([]);
-            const [lancamentosManicure, setLancamentosManicure] = useState([]);
-            const [loadingManicure, setLoadingManicure] = useState(false);
-            const [servicosSelecionadosIds, setServicosSelecionadosIds] = useState([]);
-            
-            const hojeObj = new Date();
-            const primeiroDiaMes = new Date(hojeObj.getFullYear(), hojeObj.getMonth(), 1).toISOString().split('T')[0];
-            const dataHojeStr = hojeObj.toISOString().split('T')[0];
-
-            const [dataInicio, setDataInicio] = useState(primeiroDiaMes);
-            const [dataFim, setDataFim] = useState(dataHojeStr);
-
-            const [lancamentosFinanceiros, setLancamentosFinanceiros] = useState([]);
-            const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
-            const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false);
-            const [filtroMesFin, setFiltroMesFin] = useState(hojeObj.getMonth() + 1);
-            const [filtroAnoFin, setFiltroAnoFin] = useState(hojeObj.getFullYear());
-            const [formDataFinanceiro, setFormDataFinanceiro] = useState({ item: "", categoria: "", valor: "", tipo: "entrada" });
-
-            const aplicarMascaraAniversario = (v) => {
-                if (!v) return "";
-                v = v.replace(/\D/g, "");
-                if (v.length > 4) v = v.substring(0, 4);
-                if (v.length > 2) {
-                    v = v.substring(0, 2) + "/" + v.substring(2);
-                }
-                return v;
-            };
-
-            const fetchAgendaConfigData = useCallback(async () => {
-                try {
-                    setLoading(true);
-                    const { data: bData } = await _supabase.from('agenda_bloqueada').select('data_interditada');
-                    if (bData) setBloqueios(bData.map(item => item.data_interditada));
-
-                    const { data: mData } = await _supabase.from('meses_liberados').select('mes_ano, liberado');
-                    if (mData) {
-                        setMesesLiberados(mData.filter(m => m.liberado === true).map(m => m.mes_ano));
-                    }
-
-                    const { data: cData } = await _supabase.from('agenda_config').select('*').eq('id', 1).maybeSingle();
-                    if (cData) {
-                        setConfig({ 
-                            inicio: (cData.hora_inicio || '09:00').slice(0, 5), 
-                            fim: (cData.hora_fim || '18:00').slice(0, 5), 
-                            intervalo: cData.intervalo_minutos || 40 
-                        });
-                    }
-
-                    const { data: eData } = await _supabase.from('agenda_excecoes').select('*');
-                    if (eData) {
-                        const map = {};
-                        eData.forEach(ex => {
-                            if (ex.hora_inicio && ex.hora_fim) {
-                                map[ex.data] = { 
-                                    inicio: ex.hora_inicio.slice(0, 5), 
-                                    fim: ex.hora_fim.slice(0, 5) 
-                                };
-                            }
-                        });
-                        setExcecoes(map);
-                    }
-
-                    const { data: hInativadosData } = await _supabase.from('horarios_bloqueados_pontuais').select('*');
-                    if (hInativadosData) {
-                        const hMap = {};
-                        hInativadosData.forEach(item => {
-                            if (!hMap[item.data]) hMap[item.data] = [];
-                            hMap[item.data].push(item.horario.slice(0, 5));
-                        });
-                        setHorariosInativadosMap(hMap);
-                    }
-                } catch (err) { 
-                    console.error("Erro geral da agenda:", err);
-                } finally {
-                    setLoading(false);
-                }
-            }, []);
-
-            useEffect(() => {
-                if (isAuth) {
-                    fetchData();
-                    fetchServicos();
-                    fetchAgendaConfigData();
-                    fetchFinanceiroData();
-                    loadManicureData();
-                }
-            }, [isAuth, filterDate, fetchAgendaConfigData]);
-
-            async function fetchServicos() {
-                const { data } = await _supabase.from("servicos").select("*").order("nome");
-                if (data) setServicosDb(data);
-            }
-
-            async function fetchData() {
-                setLoading(true);
-                const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
-                if (!error) setClientes(data || []);
-                setLoading(false);
-            }
-
-            async function loadManicureData() {
-                setLoadingManicure(true);
-                try {
-                    const { data: servicosData } = await _supabase.from("servicos").select("*").order("nome", { ascending: true });
-                    if (servicosData) {
-                        setServicosManicure(servicosData);
-                        setServicosSelecionadosIds(servicosData.map(s => s.id));
-                    }
-
-                    const { data, error } = await _supabase
-                        .from("financeiro")
-                        .select("*")
-                        .order("data", { ascending: false });
-                    
-                    if (error) throw error;
-                    setLancamentosManicure(data || []);
-                } catch (err) {
-                    console.error("Erro ao carregar painel manicure:", err);
-                } finally {
-                    setLoadingManicure(false);
-                }
-            }
-
-            async function fetchFinanceiroData() {
-                setLoadingFinanceiro(true);
-                const { data, error } = await _supabase.from("financeiro").select("*").order("data", { ascending: false });
-                if (!error) setLancamentosFinanceiros(data || []);
-                setLoadingFinanceiro(false);
-            }
-
-            async function deleteAgendamento(id) {
-                if(confirm("Deseja realmente excluir este agendamento?")) {
-                    const { error } = await _supabase.from("agendamentos").delete().eq("id", id);
-                    if (!error) fetchData();
-                }
-            }
-
-            const toggleServico = (servico) => {
-                const isSelected = servicosSelecionados.some(s => s.nome === servico.nome);
-                if (isSelected) setServicosSelecionados(servicosSelecionados.filter(s => s.nome !== servico.nome));
-                else setServicosSelecionados([...servicosSelecionados, servico]);
-            };
-
-            const totalValorNovo = servicosSelecionados.reduce((acc, s) => acc + (Number(s.preco) || 0), 0);
-
-            const handleAddAgendamento = async () => {
-                if (!novoAgendamento.nome || servicosSelecionados.length === 0) return alert("Preencha o nome e selecione um serviço!");
-                if (novoAgendamento.aniversario && novoAgendamento.aniversario.length < 5) return alert("Insira o aniversário completo (DD/MM) ou deixe em branco!");
+            if (aba === 'principal') {
+                abaPrincipal.classList.remove('hidden');
+                abaManicure.classList.add('hidden');
+                btnPrincipal.className = "w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition";
+                btnManicure.className = "w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition";
+                tituloPagina.innerText = "Dashboard Principal";
+            } else {
+                abaPrincipal.classList.add('hidden');
+                abaManicure.classList.remove('hidden');
+                btnManicure.className = "w-full text-left px-4 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition";
+                btnPrincipal.className = "w-full text-left px-4 py-2.5 rounded-lg text-gray-300 hover:bg-slate-800 transition";
+                tituloPagina.innerText = "Painel Manicure";
                 
-                const payload = { 
-                    cliente_nome: novoAgendamento.nome.toUpperCase(), 
-                    telefone: novoAgendamento.telefone, 
-                    data_atendimento: novoAgendamento.data, 
-                    horario: novoAgendamento.horario, 
-                    servico: servicosSelecionados.map(s => s.nome).join(", "), 
-                    valor: totalValorNovo, 
-                    status: "Aguardando", 
-                    presenca: "Pendente",
-                    aniversario: novoAgendamento.aniversario.length === 5 ? novoAgendamento.aniversario : null
-                };
-
-                const { error } = await _supabase.from("agendamentos").insert([payload]);
-                if (!error) { 
-                    setIsModalOpen(false); 
-                    setServicosSelecionados([]); 
-                    setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "", aniversario: "" }); 
-                    fetchData();
+                // Carrega dados iniciais na aba manicure se estiver vazia
+                if(document.getElementById('tabela-lancamentos').innerHTML === '') {
+                    carregarTabela(dadosManicure);
                 }
-            };
-
-            const toggleServicoManicure = (id) => {
-                setServicosSelecionadosIds(prev => 
-                    prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
-                );
-            };
-
-            const selecionarTodosManicure = () => setServicosSelecionadosIds(servicosManicure.map(s => s.id));
-            const limparSelecaoManicure = () => setServicosSelecionadosIds([]);
-
-            const lancamentosFiltradosManicure = lancamentosManicure.filter(l => {
-                if (!l.data) return false;
-                const dataItem = l.data.split('T')[0];
-                if (dataInicio && dataFim) {
-                    if (dataItem < dataInicio || dataItem > dataFim) return false;
-                }
-                if (l.tipo && l.tipo !== "entrada") return false; 
-                if (servicosSelecionadosIds.length === 0) return false;
-                if (l.servico_id) {
-                    return servicosSelecionadosIds.includes(l.servico_id);
-                }
-                const nomeItem = (l.item || l.servico || "").toUpperCase();
-                const servicosAtivosNomes = servicosManicure
-                    .filter(s => servicosSelecionadosIds.includes(s.id))
-                    .map(s => s.nome.toUpperCase());
-
-                return servicosAtivosNomes.some(nomeServico => nomeItem.includes(nomeServico));
-            });
-
-            const valorTotalPagamentoManicure = lancamentosFiltradosManicure.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
-
-            const handleSaveFinanceiro = async (e) => {
-                e.preventDefault();
-                const valorNumerico = parseFloat(String(formDataFinanceiro.valor).replace(",", ".")) || 0;
-                const payload = {
-                    item: formDataFinanceiro.item.toUpperCase(),
-                    servico: formDataFinanceiro.item.toUpperCase(),
-                    categoria: formDataFinanceiro.categoria.toUpperCase(),
-                    valor: valorNumerico,
-                    tipo: formDataFinanceiro.tipo,
-                    data: new Date().toISOString().split('T')[0],
-                    status: "pago"
-                };
-
-                const { error } = await _supabase.from("financeiro").insert([payload]);
-                if (!error) {
-                    setIsFinanceiroModalOpen(false);
-                    setFormDataFinanceiro({ item: "", categoria: "", valor: "", tipo: "entrada" });
-                    fetchFinanceiroData();
-                } else {
-                    alert("Erro ao salvar lançamento financeiro.");
-                }
-            };
-
-            const lancamentosFiltradosFin = (lancamentosFinanceiros || []).filter(l => {
-                if (!l.data) return false;
-                const partes = l.data.split('-');
-                if (partes.length < 2) return false;
-                const [ano, mes] = partes;
-                return Number(mes) === filtroMesFin && Number(ano) === filtroAnoFin;
-            });
-
-            const totalEntradasFin = lancamentosFiltradosFin
-                .filter(l => l.tipo === "entrada")
-                .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
-
-            const totalSaidasFin = lancamentosFiltradosFin
-                .filter(l => l.tipo === "saida")
-                .reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
-
-            const lucroRealFin = totalEntradasFin - totalSaidasFin;
-
-            const abrirConfigModal = (dateISO) => {
-                setSelectedDateISO(dateISO);
-                const confAtiva = excecoes[dateISO] || config;
-                setTempInicio(confAtiva.inicio);
-                setTempFim(confAtiva.fim);
-                setIsConfigModalOpen(true);
-            };
-
-            const salvarExcecao = async () => {
-                if (!selectedDateISO) return;
-                setLoading(true);
-                const { error } = await _supabase.from('agenda_excecoes').upsert({
-                    data: selectedDateISO,
-                    hora_inicio: tempInicio,
-                    hora_fim: tempFim
-                }, { onConflict: 'data' });
-
-                if (!error) {
-                    setExcecoes(prev => ({ ...prev, [selectedDateISO]: { inicio: tempInicio, fim: tempFim } }));
-                    alert("Expediente salvo com sucesso!");
-                } else {
-                    console.error(error);
-                    alert("Erro ao salvar horário especial.");
-                }
-                setLoading(false);
-            };
-
-            const toggleHorarioPontual = async (horarioStr) => {
-                if (!selectedDateISO) return;
-                const inativadosAtuais = horariosInativadosMap[selectedDateISO] || [];
-                const jaInativado = inativadosAtuais.includes(horarioStr);
-
-                if (jaInativado) {
-                    const { error } = await _supabase.from('horarios_bloqueados_pontuais')
-                        .delete()
-                        .match({ data: selectedDateISO, horario: horarioStr });
-                    if (!error) {
-                        setHorariosInativadosMap(prev => ({
-                            ...prev,
-                            [selectedDateISO]: inativadosAtuais.filter(h => h !== horarioStr)
-                        }));
-                    }
-                } else {
-                    const { error } = await _supabase.from('horarios_bloqueados_pontuais')
-                        .insert([{ data: selectedDateISO, horario: horarioStr }]);
-                    if (!error) {
-                        setHorariosInativadosMap(prev => ({
-                            ...prev,
-                            [selectedDateISO]: [...inativadosAtuais, horarioStr]
-                        }));
-                    }
-                }
-            };
-
-            const gerarSlotsDoDia = () => {
-                if (!selectedDateISO) return [];
-                const confAtiva = excecoes[selectedDateISO] || config;
-                const [hIni, mIni] = (confAtiva.inicio || '09:00').split(':').map(Number);
-                const [hFim, mFim] = (confAtiva.fim || '18:00').split(':').map(Number);
-                
-                let minutosAtuais = hIni * 60 + mIni;
-                const minutosFim = hFim * 60 + mFim;
-                const intervalo = Number(config.intervalo) || 40;
-
-                const slots = [];
-                while (minutosAtuais < minutosFim) {
-                    const hh = String(Math.floor(minutosAtuais / 60)).padStart(2, '0');
-                    const mm = String(minutosAtuais % 60).padStart(2, '0');
-                    slots.push(`${hh}:${mm}`);
-                    minutosAtuais += intervalo;
-                }
-                return slots;
-            };
-
-            const toggleBloqueioDiaModal = async () => {
-                if (!selectedDateISO) return;
-                const jaBloqueado = bloqueios.includes(selectedDateISO);
-                if (jaBloqueado) {
-                    setBloqueios(prev => prev.filter(d => d !== selectedDateISO));
-                    await _supabase.from('agenda_bloqueada').delete().eq('data_interditada', selectedDateISO);
-                } else {
-                    setBloqueios(prev => [...prev, selectedDateISO]);
-                    await _supabase.from('agenda_bloqueada').insert([{ data_interditada: selectedDateISO }]);
-                }
-            };
-
-            const renderMonth = (date) => {
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const mesAnoKey = `${year}-${String(month + 1).padStart(2, '0')}`;
-                const isLiberado = mesesLiberados.includes(mesAnoKey);
-                const days = new Date(year, month + 1, 0).getDate();
-                const firstDay = new Date(year, month, 1).getDay();
-                const monthName = date.toLocaleString('pt-BR', { month: 'long' });
-
-                return h("div", { key: mesAnoKey, className: `bg-white p-6 rounded-[2.5rem] border-2 shadow-sm flex-1 transition-all ${isLiberado ? 'border-[#bf953f]/30' : 'border-zinc-100 opacity-80'}` },
-                    h("div", { className: "flex justify-between items-center mb-6 border-b border-zinc-100 pb-4" },
-                        h("h3", { className: "font-black text-zinc-900 uppercase tracking-[0.2em] text-sm" }, `${monthName} ${year}`),
-                        h("button", {
-                            disabled: loading,
-                            onClick: async () => {
-                                const novoStatus = !isLiberado;
-                                setMesesLiberados(prev => novoStatus ? [...prev, mesAnoKey] : prev.filter(m => m !== mesAnoKey));
-                                const { error } = await _supabase.from('meses_liberados').upsert(
-                                    { mes_ano: mesAnoKey, liberado: novoStatus },
-                                    { onConflict: 'mes_ano' }
-                                );
-                                if (error) { console.error(error); fetchAgendaConfigData(); }
-                            },
-                            className: `flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-sm transition-all ${isLiberado ? 'bg-[#bf953f] text-black' : 'bg-zinc-200 text-zinc-500'}`
-                        }, isLiberado ? 'Aberto' : 'Trancado')
-                    ),
-                    h("div", { className: "grid grid-cols-7 gap-1 text-center mb-4 text-[10px] font-bold text-zinc-400" },
-                        ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map((d, i) => h("div", { key: i }, d))
-                    ),
-                    h("div", { className: `grid grid-cols-7 gap-3 ${!isLiberado ? 'pointer-events-none grayscale' : ''}` },
-                        Array(firstDay).fill(null).map((_, i) => h("div", { key: `empty-${i}` })),
-                        Array.from({ length: days }).map((_, i) => {
-                            const dia = i + 1;
-                            const dataISO = `${year}-${String(month + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                            const isBlocked = bloqueios.includes(dataISO);
-                            const temExcecao = Boolean(excecoes[dataISO] || (horariosInativadosMap[dataISO] && horariosInativadosMap[dataISO].length > 0));
-
-                            return h("div", {
-                                key: dia,
-                                onDoubleClick: () => abrirConfigModal(dataISO),
-                                title: "Dê duplo clique para configurar horários do dia",
-                                className: `h-12 rounded-2xl flex flex-col items-center justify-center text-sm font-bold transition-all border-2 relative cursor-pointer select-none
-                                    ${isBlocked ? 'bg-red-500 text-white border-red-600 shadow-lg' : 
-                                    temExcecao ? 'bg-amber-50 text-[#bf953f] border-[#bf953f]' : 
-                                    'bg-zinc-50 text-zinc-900 border-zinc-100 hover:border-[#bf953f]'}`
-                            }, dia, temExcecao && !isBlocked && h("div", { className: "absolute -top-1 -right-1 w-3 h-3 bg-[#bf953f] rounded-full border-2 border-white" }))
-                        })
-                    )
-                );
-            };
-
-            const clientesFiltrados = (clientes || []).filter(c => 
-                c.cliente_nome && c.cliente_nome.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-
-            if (!isAuth) return h(LoginPortal, { onLogin: () => setIsAuth(true) });
-
-            const stats = {
-                total: clientesFiltrados.length,
-                financeiro: clientesFiltrados.reduce((acc, c) => acc + Number(c.valor || 0), 0)
-            };
-
-            return h("div", { className: "min-h-screen flex flex-col pb-20 relative", style: { background: palette.bg } },
-                h("header", { className: "bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm" },
-                    h("div", { className: "max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6" },
-                        h("div", { className: "flex flex-col md:flex-row items-center gap-6" },
-                            h("h1", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, "PORTAL ", h("span", { className: "text-[#bf953f]" }, "ADMIN")),
-                            h("div", { className: "flex flex-wrap bg-gray-100 p-1 rounded-xl border border-gray-200 gap-1" },
-                                h("button", { 
-                                    onClick: () => setCurrentTab("agendamentos"), 
-                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agendamentos" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
-                                }, "Agendamentos"),
-                                h("button", { 
-                                    onClick: () => setCurrentTab("manicure"), 
-                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "manicure" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
-                                }, "Painel Manicure"),
-                                h("button", { 
-                                    onClick: () => setCurrentTab("financeiro"), 
-                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "financeiro" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
-                                }, "Fluxo Estratégico"),
-                                h("button", { 
-                                    onClick: () => setCurrentTab("agenda_config"), 
-                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agenda_config" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
-                                }, "Configurar Agenda")
-                            )
-                        ),
-                        currentTab === "agendamentos" && h("div", { className: "flex flex-wrap justify-center gap-4" },
-                            h("div", { className: "relative flex items-center" },
-                                h("input", { 
-                                    type: "text", 
-                                    placeholder: "PESQUISAR CLIENTE...", 
-                                    className: "bg-gray-100 px-4 py-3 rounded-2xl text-[10px] font-black outline-none uppercase w-64 focus:border-[#bf953f] border border-transparent",
-                                    value: searchTerm,
-                                    onChange: (e) => setSearchTerm(e.target.value)
-                                })
-                            ),
-                            h("button", { onClick: () => setIsModalOpen(true), className: "flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all cursor-pointer" }, "+ Novo Agendamento"),
-                            h("input", { type: "date", className: "bg-gray-100 p-3 rounded-2xl text-xs font-black outline-none uppercase cursor-pointer", value: filterDate, onChange: (e) => setFilterDate(e.target.value) })
-                        ),
-                        currentTab === "financeiro" && h("div", { className: "flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-200" },
-                            h("select", { 
-                                value: filtroMesFin, 
-                                onChange: (e) => setFiltroMesFin(Number(e.target.value)),
-                                className: "bg-transparent text-[11px] font-black uppercase outline-none cursor-pointer p-1"
-                            }, MESES.map((m, i) => h("option", { key: i, value: i+1 }, m))),
-                            h("select", { 
-                                value: filtroAnoFin, 
-                                onChange: (e) => setFiltroAnoFin(Number(e.target.value)),
-                                className: "bg-transparent text-[11px] font-black uppercase outline-none cursor-pointer p-1"
-                            }, [2025, 2026, 2027].map(ano => h("option", { key: ano, value: ano }, ano))),
-                            h("button", { 
-                                onClick: () => setIsFinanceiroModalOpen(true),
-                                className: "bg-black text-white px-6 py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all ml-2 cursor-pointer"
-                            }, "+ Lançar")
-                        )
-                    )
-                ),
-
-                h("main", { className: "max-w-7xl mx-auto w-full p-8 space-y-8" },
-                    currentTab === "agendamentos" ? [
-                        h("div", { key: "s1", className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-                            h("div", { className: "bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100" },
-                                h("p", { className: "text-[9px] font-black text-gray-400 uppercase" }, "Agendados no filtro"),
-                                h("p", { className: "text-3xl font-black italic" }, stats.total)
-                            ),
-                            h("div", { className: "bg-black p-6 rounded-[2rem] shadow-xl text-white" },
-                                h("p", { className: "text-[9px] font-black text-[#bf953f] uppercase" }, "Receita Prevista (Filtro)"),
-                                h("p", { className: "text-2xl font-black italic" }, `R$ ${stats.financeiro.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
-                            )
-                        ),
-                        h("div", { key: "s2", className: "bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 overflow-x-auto custom-scroll" },
-                            h("table", { className: "w-full text-left min-w-[750px]" },
-                                h("thead", { className: "bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest" },
-                                    h("tr", null,
-                                        h("th", { className: "px-8 py-6" }, "Horário"),
-                                        h("th", { className: "px-8 py-6" }, "Cliente"),
-                                        h("th", { className: "px-8 py-6 text-right" }, "Valor"),
-                                        h("th", { className: "px-8 py-6 text-center" }, "Ações")
-                                    )
-                                ),
-                                h("tbody", { className: "divide-y divide-gray-50" },
-                                    clientesFiltrados.map(c => h("tr", { key: c.id, className: "hover:bg-gray-50/80 transition-all group" },
-                                        h("td", { className: "px-8 py-6" }, h("span", { className: "bg-black text-[#bf953f] px-4 py-2 rounded-xl font-black text-xs" }, c.horario)),
-                                        h("td", { className: "px-8 py-6 font-black italic uppercase text-sm" }, 
-                                            h("div", { className: "flex items-center gap-3" },
-                                                h("span", null, c.cliente_nome),
-                                                c.aniversario && h("span", { className: "bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-1 rounded-md flex items-center gap-1 normal-case" }, `Aniversário: ${c.aniversario}`)
-                                            ),
-                                            h("p", { className: "text-[8px] text-gray-400 not-italic font-bold mt-1" }, c.servico)
-                                        ),
-                                        h("td", { className: "px-8 py-6 text-right font-black italic text-[#bf953f]" }, `R$ ${Number(c.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`),
-                                        h("td", { className: "px-8 py-6 text-center" }, 
-                                            h("div", { className: "flex justify-center gap-2" },
-                                                h("a", { 
-                                                    href: `https://api.whatsapp.com/send?phone=55${c.telefone ? c.telefone.replace(/\D/g, '') : ''}&text=${encodeURIComponent(`Olá ${c.cliente_nome}, tudo bem? Passando para confirmar seu agendamento na Rivi Silva Esmalteria para o dia ${c.data_atendimento ? c.data_atendimento.split('-').reverse().join('/') : ''} às ${c.horario}. Te aguardo!`)}`, 
-                                                    target: "_blank",
-                                                    className: "p-3 bg-green-50 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-all cursor-pointer font-bold text-xs",
-                                                    title: "WhatsApp"
-                                                }, "WhatsApp"),
-                                                h("button", { onClick: () => deleteAgendamento(c.id), className: "p-3 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all cursor-pointer font-bold text-xs", title: "Excluir" }, "Excluir")
-                                            )
-                                        )
-                                    ))
-                                )
-                            )
-                        ),
-                        clientesFiltrados.length === 0 && h("div", { key: "s3", className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
-                    ] : currentTab === "manicure" ? [
-                        h("div", { key: "m1", className: "w-full space-y-10" },
-                            h("div", { className: "max-w-7xl mx-auto space-y-10" },
-                                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
-                                    h("div", null,
-                                        h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Rivi Silva Performance"),
-                                        h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Painel da ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
-                                    ),
-                                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
-                                            h("input", { type: "date", value: dataInicio, onChange: (e) => setDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
-                                            h("input", { type: "date", value: dataFim, onChange: (e) => setDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("button", { onClick: loadManicureData, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
-                                    )
-                                ),
-                                h("div", { className: "bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100 space-y-4" },
-                                    h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
-                                        h("h3", { className: "text-xs font-black uppercase tracking-[0.3em] text-zinc-400" }, "Serviços Considerados no Cálculo:"),
-                                        h("div", { className: "flex gap-2" },
-                                            h("button", { onClick: selecionarTodosManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Selecionar Todos"),
-                                            h("button", { onClick: limparSelecaoManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Limpar")
-                                        )
-                                    ),
-                                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                                        servicosManicure.map((serv) => {
-                                            const selecionado = servicosSelecionadosIds.includes(serv.id);
-                                            return h("div", { 
-                                                key: serv.id, 
-                                                onClick: () => toggleServicoManicure(serv.id),
-                                                className: `p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
-                                                    selecionado ? 'bg-amber-50/70 border-[#bf953f] shadow-sm ring-2 ring-[#bf953f]/20' : 'bg-zinc-50 border-zinc-100 hover:border-zinc-300'
-                                                }`
-                                            },
-                                                h("div", null,
-                                                    h("p", { className: "font-black text-xs uppercase text-zinc-900" }, serv.nome),
-                                                    h("p", { className: "text-xs font-bold text-[#bf953f] mt-0.5" }, `R$ ${Number(serv.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                ),
-                                                h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
-                                                    selecionado ? 'bg-[#bf953f] text-white shadow' : 'bg-white border border-zinc-200 text-zinc-300'
-                                                }` }, selecionado ? "✓" : "")
-                                            );
-                                        })
-                                    )
-                                ),
-                                h("div", { className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
-                                    h("div", { className: "z-10" },
-                                        h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Valor Total a Pagar no Período Selecionado"),
-                                        h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPagamentoManicure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
-                                        h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${lancamentosFiltradosManicure.length} lançamentos entre ${dataInicio?.split('-').reverse().join('/')} e ${dataFim?.split('-').reverse().join('/')}.`)
-                                    )
-                                ),
-                                h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
-                                    h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
-                                        h("div", null,
-                                            h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Extrato Detalhado do Período"),
-                                            h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Lista de cada atendimento que compõe este valor:")
-                                        ),
-                                        h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosManicure.length} Registros`)
-                                    ),
-                                    loadingManicure ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
-                                    h("div", { className: "overflow-x-auto" },
-                                        h("table", { className: "w-full text-left" },
-                                            h("tbody", { className: "divide-y divide-zinc-50" },
-                                                lancamentosFiltradosManicure.length === 0 ? h("tr", null,
-                                                    h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 2 }, "Nenhum atendimento encontrado para os serviços e datas selecionados.")
-                                                ) : lancamentosFiltradosManicure.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
-                                                    h("td", { className: "p-8" },
-                                                        h("div", { className: "flex items-center gap-5" },
-                                                            h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "💅"),
-                                                            h("div", null,
-                                                                h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
-                                                                h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                    "Categoria: ", h("span", { className: "text-zinc-700" }, l.categoria || "Geral"), " | Data: ", l.data?.split('-').reverse().join('/')
-                                                                )
-                                                            )
-                                                        )
-                                                    ),
-                                                    h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `+ R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                ))
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    ] : currentTab === "financeiro" ? [
-                        h("div", { key: "f1", className: "space-y-10" },
-                            h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8" },
-                                h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500 font-bold text-xs uppercase" },
-                                        `Receitas (${MESES[filtroMesFin-1]})`
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-emerald-600" }, `R$ ${totalEntradasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                ),
-                                h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-rose-500 font-bold text-xs uppercase" },
-                                        `Despesas (${MESES[filtroMesFin-1]})`
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-rose-600" }, `R$ ${totalSaidasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                ),
-                                h("div", { className: "p-10 rounded-[45px] border border-[#bf953f]/40 ring-1 ring-[#bf953f]/10 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-[#bf953f] font-bold text-xs uppercase" },
-                                        "Lucro Líquido"
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-[#bf953f]" }, `R$ ${lucroRealFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                )
-                            ),
-                            h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
-                                h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
-                                    h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, `Extrato de ${MESES[filtroMesFin-1]} / ${filtroAnoFin}`),
-                                    h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosFin.length} Registros`)
-                                ),
-                                h("div", { className: "overflow-x-auto" },
-                                    h("table", { className: "w-full text-left" },
-                                        h("tbody", { className: "divide-y divide-zinc-50" },
-                                            lancamentosFiltradosFin.length === 0 ? h("tr", null,
-                                                h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]" }, "Sem movimentações neste período")
-                                            ) : lancamentosFiltradosFin.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
-                                                h("td", { className: "p-8" },
-                                                    h("div", { className: "flex items-center gap-5" },
-                                                        h("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${l.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}` },
-                                                            l.tipo === 'entrada' ? '+' : '-'
-                                                        ),
-                                                        h("div", null,
-                                                            h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
-                                                            h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
-                                                            )
-                                                        )
-                                                    )
-                                                ),
-                                                h("td", { className: "p-8 text-right font-black text-lg tracking-tighter" },
-                                                    h("span", { className: l.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600' },
-                                                        `${l.tipo === 'saida' ? '- ' : '+ '}R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                                    )
-                                                ),
-                                                h("td", { className: "p-8 text-right" },
-                                                    h("button", {
-                                                        onClick: async () => {
-                                                            if(confirm("Excluir?")) {
-                                                                await _supabase.from("financeiro").delete().eq("id", l.id);
-                                                                fetchFinanceiroData();
-                                                            }
-                                                        },
-                                                        className: "text-zinc-200 hover:text-rose-500 transition-all font-bold text-xs cursor-pointer"
-                                                    }, "Excluir")
-                                                )
-                                            ))
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    ] : [
-                        h("div", { key: "c1", className: "space-y-8" },
-                            h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
-                                h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
-                                    h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
-                                    h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
-                                ),
-                                h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
-                                    h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("div", { className: "flex items-center gap-3" },
-                                            h("input", { type: "time", value: config.inicio, onChange: e => setConfig({...config, inicio: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" }),
-                                            h("span", { className: "font-bold text-zinc-400" }, "até"),
-                                            h("input", { type: "time", value: config.fim, onChange: e => setConfig({...config, fim: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" })
-                                        )
-                                    ),
-                                    h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("input", { type: "number", value: config.intervalo, onChange: e => setConfig({...config, intervalo: parseInt(e.target.value) || 0}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-20 text-center outline-none" })
-                                    ),
-                                    h("button", {
-                                        disabled: loading,
-                                        onClick: async () => {
-                                            setLoading(true);
-                                            const { error } = await _supabase.from('agenda_config').upsert({ 
-                                                id: 1, 
-                                                hora_inicio: config.inicio, 
-                                                hora_fim: config.fim, 
-                                                intervalo_minutos: config.intervalo 
-                                            }, { onConflict: 'id' });
-                                            setLoading(false);
-                                            if (!error) alert("Configurações Salvas!");
-                                            else alert("Erro ao salvar no banco.");
-                                        },
-                                        className: "bg-[#bf953f] text-black font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
-                                    }, "Salvar Configurações")
-                                )
-                            ),
-                            h("div", { className: "flex flex-col lg:flex-row gap-8" },
-                                renderMonth(viewDate),
-                                renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
-                            ),
-                            h("div", { className: "flex justify-center items-center gap-10 pt-6" },
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Mês Anterior"),
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Próximo Mês")
-                            )
-                        )
-                    ]
-                ),
-
-                isModalOpen && h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" },
-                    h("div", { className: "bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#bf953f] relative" },
-                        h("button", { onClick: () => setIsModalOpen(false), className: "absolute top-6 right-6 p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all cursor-pointer font-bold" }, "✕"),
-                        h("div", { className: "p-8 space-y-6" },
-                            h("h2", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, "Novo ", h("span", { className: "text-[#bf953f]" }, "Cadastro")),
-                            h("div", { className: "space-y-4" },
-                                h("div", { className: "grid grid-cols-2 gap-3" },
-                                    h("input", { type: "text", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", placeholder: "NOME DO CLIENTE", value: novoAgendamento.nome, onChange: (e) => setNovoAgendamento({...novoAgendamento, nome: e.target.value.toUpperCase()}) }),
-                                    h("input", { type: "tel", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", placeholder: "WHATSAPP", value: novoAgendamento.telefone, onChange: (e) => setNovoAgendamento({...novoAgendamento, telefone: e.target.value}) })
-                                ),
-                                h("div", { className: "grid grid-cols-2 gap-3" },
-                                    h("input", { type: "date", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black cursor-pointer", value: novoAgendamento.data, onChange: (e) => setNovoAgendamento({...novoAgendamento, data: e.target.value}) }),
-                                    h("input", { type: "time", className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-black cursor-pointer", value: novoAgendamento.horario, onChange: (e) => setNovoAgendamento({...novoAgendamento, horario: e.target.value}) })
-                                ),
-                                h("div", { className: "space-y-1" },
-                                    h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Aniversário (Opcional)"),
-                                    h("input", { 
-                                        type: "text", 
-                                        maxLength: 5,
-                                        className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", 
-                                        placeholder: "EX: 25/08", 
-                                        value: novoAgendamento.aniversario, 
-                                        onChange: (e) => setNovoAgendamento({...novoAgendamento, aniversario: aplicarMascaraAniversario(e.target.value)}) 
-                                    })
-                                ),
-                                h("div", { className: "space-y-2" },
-                                    h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Procedimentos"),
-                                    h("div", { className: "grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 custom-scroll" },
-                                        (servicosDb || []).map(s => h("button", { 
-                                            key: s.nome, 
-                                            onClick: () => toggleServico(s), 
-                                            className: `p-4 rounded-xl text-[9px] font-black uppercase text-left border flex justify-between items-center cursor-pointer ${servicosSelecionados.some(sel => sel.nome === s.nome) ? 'bg-orange-50 border-[#bf953f] text-[#bf953f]' : 'bg-gray-50 border-gray-100 text-gray-400'}` 
-                                        }, s.nome, servicosSelecionados.some(sel => sel.nome === s.nome) && "✓"))
-                                    )
-                                ),
-                                h("div", { className: "p-4 rounded-2xl flex justify-between items-center bg-black text-white" },
-                                    h("span", { className: "text-[9px] font-black uppercase text-[#bf953f]" }, "Total:"),
-                                    h("span", { className: "font-black italic text-xl" }, `R$ ${totalValorNovo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
-                                ),
-                                h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
-                            )
-                        )
-                    )
-                ),
-
-                isFinanceiroModalOpen && h("div", { className: "fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" },
-                    h("div", { className: "bg-white w-full max-w-md rounded-[45px] p-12 shadow-2xl relative" },
-                        h("button", { onClick: () => setIsFinanceiroModalOpen(false), className: "absolute top-10 right-10 text-zinc-300 hover:text-black font-black cursor-pointer" }, "✕"),
-                        h("h3", { className: "text-sm font-black uppercase tracking-[0.4em] mb-10 text-zinc-800" }, "Lançamento Financeiro"),
-                        h("form", { onSubmit: handleSaveFinanceiro, className: "space-y-6" },
-                            h("input", { required: true, placeholder: "DESCRIÇÃO", className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-xs font-bold outline-none uppercase", value: formDataFinanceiro.item, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, item: e.target.value}) }),
-                            h("div", { className: "grid grid-cols-2 gap-4" },
-                                h("input", { required: true, placeholder: "VALOR R$", className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-xs font-black outline-none", value: formDataFinanceiro.valor, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, valor: e.target.value.replace(/[^0-9,.]/g, "")}) }),
-                                h("select", { className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-[10px] font-black outline-none uppercase cursor-pointer", value: formDataFinanceiro.tipo, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, tipo: e.target.value}) },
-                                    h("option", { value: "entrada" }, "Entrada (+)"),
-                                    h("option", { value: "saida" }, "Saída (-)")
-                                )
-                            ),
-                            h("input", { required: true, placeholder: "CATEGORIA", className: "w-full bg-zinc-50 rounded-2xl px-6 py-4 text-xs font-bold outline-none uppercase", value: formDataFinanceiro.categoria, onChange: e => setFormDataFinanceiro({...formDataFinanceiro, categoria: e.target.value}) }),
-                            h("button", { type: "submit", className: "w-full bg-black text-white py-6 rounded-full font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl hover:bg-[#bf953f] transition-all cursor-pointer" }, "Confirmar Lançamento")
-                        )
-                    )
-                ),
-
-                isConfigModalOpen && h("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[100] flex items-center justify-center p-4" },
-                    h("div", { className: "bg-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border border-zinc-50 space-y-6 max-h-[90vh] overflow-y-auto custom-scroll" },
-                        h("div", { className: "flex justify-between items-center border-b pb-4" },
-                            h("div", { className: "flex flex-col" },
-                                h("h2", { className: "font-black text-zinc-900 uppercase text-[10px] tracking-[0.2em]" }, "Gestão do Dia & Horários"),
-                                h("span", { className: "text-zinc-400 font-bold text-xs" }, selectedDateISO)
-                            ),
-                            h("button", { onClick: () => setIsConfigModalOpen(false), className: "text-zinc-300 hover:text-zinc-900 transition-colors font-black cursor-pointer" }, "✕")
-                        ),
-                        
-                        h("div", { className: "bg-zinc-50 p-4 rounded-2xl border border-zinc-100 flex items-center justify-between" },
-                            h("div", { className: "flex flex-col" },
-                                h("span", { className: "text-[10px] font-black uppercase text-zinc-900" }, "Estado do Dia Inteiro"),
-                                h("span", { className: "text-[9px] text-zinc-500" }, bloqueios.includes(selectedDateISO) ? "O dia está bloqueado" : "O dia está aberto")
-                            ),
-                            h("button", {
-                                onClick: toggleBloqueioDiaModal,
-                                className: `px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all cursor-pointer ${bloqueios.includes(selectedDateISO) ? 'bg-red-500 text-white shadow' : 'bg-zinc-200 text-zinc-700'}`
-                            }, bloqueios.includes(selectedDateISO) ? "Desbloquear Dia" : "Bloquear Dia Inteiro")
-                        ),
-
-                        h("div", { className: "space-y-4" },
-                            h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, "Ajustar Horário de Funcionamento do Dia"),
-                            h("div", { className: "grid grid-cols-2 gap-3" },
-                                h("div", { className: "flex flex-col gap-1" },
-                                    h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Início"),
-                                    h("input", { type: "time", value: tempInicio, onChange: e => setTempInicio(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#bf953f] cursor-pointer" })
-                                ),
-                                h("div", { className: "flex flex-col gap-1" },
-                                    h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, "Fim"),
-                                    h("input", { type: "time", value: tempFim, onChange: e => setTempFim(e.target.value), className: "bg-zinc-50 border border-zinc-100 p-3 rounded-xl font-bold text-zinc-900 outline-none focus:border-[#bf953f] cursor-pointer" })
-                                )
-                            ),
-                            h("button", { 
-                                onClick: salvarExcecao, 
-                                disabled: loading,
-                                className: "w-full bg-zinc-900 text-white font-black py-3 rounded-xl uppercase text-[10px] tracking-[0.1em] hover:bg-[#bf953f] hover:text-black transition-all cursor-pointer"
-                            }, 'Salvar Expediente do Dia')
-                        ),
-
-                        h("div", { className: "space-y-3 pt-4 border-t border-zinc-100" },
-                            h("div", { className: "flex flex-col" },
-                                h("span", { className: "text-[10px] font-black text-zinc-900 uppercase tracking-widest" }, "Inativar Horários Específicos"),
-                                h("span", { className: "text-[9px] text-zinc-400 font-medium" }, "Clique num horário para bloqueá-lo")
-                            ),
-                            h("div", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
-                                gerarSlotsDoDia().map(slot => {
-                                    const inativados = horariosInativadosMap[selectedDateISO] || [];
-                                    const isInativado = inativados.includes(slot);
-                                    return h("button", {
-                                        key: slot,
-                                        onClick: () => toggleHorarioPontual(slot),
-                                        className: `p-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border cursor-pointer ${
-                                            isInativado ? 'bg-red-600 text-white border-red-700 line-through shadow-md scale-95' : 'bg-white text-zinc-800 border-zinc-200 hover:border-[#bf953f]'
-                                        }`
-                                    }, slot, h("span", { className: "text-[8px] uppercase tracking-tighter mt-0.5 font-bold" }, isInativado ? 'Bloqueado' : 'Disponível'))
-                                })
-                            )
-                        )
-                    )
-                )
-            );
+            }
         }
 
-        ReactDOM.render(h(Dashboard), document.getElementById('root'));
+        // Função para carregar a tabela na interface
+        function carregarTabela(lista) {
+            const tbody = document.getElementById('tabela-lancamentos');
+            tbody.innerHTML = '';
+            
+            let totalSoma = 0;
+
+            if (lista.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Nenhum registro encontrado para este filtro.</td></tr>`;
+                document.getElementById('resultado-total').innerText = 'R$ 0,00';
+                document.getElementById('resultado-qtd').innerText = '0';
+                return;
+            }
+
+            lista.forEach(item => {
+                totalSoma += item.valor;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4">${item.data}</td>
+                    <td class="p-4 font-medium">${item.cliente}</td>
+                    <td class="p-4">${item.servico}</td>
+                    <td class="p-4 font-semibold text-indigo-600">R$ ${item.valor.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('resultado-total').innerText = `R$ ${totalSoma.toFixed(2)}`;
+            document.getElementById('resultado-qtd').innerText = lista.length;
+        }
+
+        // Função de filtro do painel manicure
+        function filtrarManicure() {
+            const dataInicio = document.getElementById('filtro-inicio').value;
+            const dataFim = document.getElementById('filtro-fim').value;
+            const servicoFiltro = document.getElementById('filtro-servico').value;
+
+            let filtrados = dadosManicure.filter(item => {
+                let atendeData = true;
+                let atendeServico = true;
+
+                if (dataInicio && item.data < dataInicio) atendeData = false;
+                if (dataFim && item.data > dataFim) atendeData = false;
+                if (servicoFiltro !== 'todos' && item.servico !== servicoFiltro) atendeServico = false;
+
+                return atendeData && atendeServico;
+            });
+
+            carregarTabela(filtrados);
+        }
     </script>
 </body>
 </html>
