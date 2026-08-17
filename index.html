@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
 
@@ -29,7 +30,7 @@
 
         const supabaseUrl = 'https://rahubkowehwtvditbhlx.supabase.co';
         const supabaseKey = 'sb_publishable_wKbs4gYVURdIR6Cafm8qFA_tUZZTIKo'; 
-        const _supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+        const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         const palette = {
             gold: "#bf953f",
@@ -48,8 +49,10 @@
             const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
             return h("div", { className: "min-h-screen flex items-center justify-center bg-[#f8f8f8] p-4" },
                 h("div", { className: "bg-white p-10 rounded-[2.5rem] border border-zinc-200 w-full max-w-md text-center shadow-xl" },
+                    h("div", { className: "mb-6 flex justify-center" },
+                        h("img", { src: "logo.png", alt: "Logo", className: "w-24 h-24 object-contain" })
+                    ),
                     h("h2", { className: "text-zinc-900 font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
-                    h("p", { className: "text-xs font-bold text-zinc-400 uppercase tracking-widest mb-6" }, "Portal Admin & Relatórios"),
                     h("input", { 
                         type: "password", 
                         placeholder: "DIGITE A SENHA", 
@@ -58,7 +61,7 @@
                         onChange: (e) => setPass(e.target.value), 
                         onKeyPress: (e) => e.key === 'Enter' && handleLogin() 
                     }),
-                    h("button", { onClick: handleLogin, className: "w-full py-5 gold-bg text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-md cursor-pointer" }, "Entrar")
+                    h("button", { onClick: handleLogin, className: "w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl shadow-md cursor-pointer" }, "Entrar")
                 )
             );
         };
@@ -66,6 +69,10 @@
         function Dashboard() {
             const [isAuth, setIsAuth] = useState(false);
             const [currentTab, setCurrentTab] = useState("agendamentos");
+            const [registrosManicure, setRegistrosManicure] = useState([]);
+            const [relatorioDataInicio, setRelatorioDataInicio] = useState('');
+            const [relatorioDataFim, setRelatorioDataFim] = useState('');
+            const [loadingRelatorio, setLoadingRelatorio] = useState(false);
             const [loading, setLoading] = useState(true);
             const [clientes, setClientes] = useState([]);
             const [searchTerm, setSearchTerm] = useState("");
@@ -85,12 +92,11 @@
             const [tempFim, setTempFim] = useState('');
             const [horariosInativadosMap, setHorariosInativadosMap] = useState({});
 
-            // Estados integrados para o Relatório Manicure
-            const [registrosManicure, setRegistrosManicure] = useState([]);
-            const [dataInicioManicure, setDataInicioManicure] = useState('');
-            const [dataFimManicure, setDataFimManicure] = useState('');
+            const [servicosManicure, setServicosManicure] = useState([]);
+            const [lancamentosManicure, setLancamentosManicure] = useState([]);
             const [loadingManicure, setLoadingManicure] = useState(false);
-
+            const [servicosSelecionadosIds, setServicosSelecionadosIds] = useState([]);
+            
             const hojeObj = new Date();
             const primeiroDiaMes = new Date(hojeObj.getFullYear(), hojeObj.getMonth(), 1).toISOString().split('T')[0];
             const dataHojeStr = hojeObj.toISOString().split('T')[0];
@@ -99,6 +105,7 @@
             const [dataFim, setDataFim] = useState(dataHojeStr);
 
             const [lancamentosFinanceiros, setLancamentosFinanceiros] = useState([]);
+            const [loadingFinanceiro, setLoadingFinanceiro] = useState(false);
             const [isFinanceiroModalOpen, setIsFinanceiroModalOpen] = useState(false);
             const [filtroMesFin, setFiltroMesFin] = useState(hojeObj.getMonth() + 1);
             const [filtroAnoFin, setFiltroAnoFin] = useState(hojeObj.getFullYear());
@@ -115,7 +122,6 @@
             };
 
             const fetchAgendaConfigData = useCallback(async () => {
-                if (!_supabase) return;
                 try {
                     setLoading(true);
                     const { data: bData } = await _supabase.from('agenda_bloqueada').select('data_interditada');
@@ -166,32 +172,60 @@
             }, []);
 
             useEffect(() => {
-                if (isAuth && _supabase) {
+                if (isAuth) {
                     fetchData();
                     fetchServicos();
                     fetchAgendaConfigData();
                     fetchFinanceiroData();
-                    carregarRelatorioManicure();
+                    loadManicureData();
                 }
             }, [isAuth, filterDate, fetchAgendaConfigData]);
 
             async function fetchServicos() {
-                if (!_supabase) return;
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
                 if (data) setServicosDb(data);
             }
 
             async function fetchData() {
-                if (!_supabase) return;
                 setLoading(true);
                 const { data, error } = await _supabase.from("agendamentos").select("*").eq("data_atendimento", filterDate).order("horario", { ascending: true });
                 if (!error) setClientes(data || []);
                 setLoading(false);
             }
 
-            const carregarRelatorioManicure = async () => {
-                if (!_supabase) return;
+            async function loadManicureData() {
                 setLoadingManicure(true);
+                try {
+                    const { data: servicosData } = await _supabase.from("servicos").select("*").order("nome", { ascending: true });
+                    if (servicosData) {
+                        setServicosManicure(servicosData);
+                        setServicosSelecionadosIds(servicosData.map(s => s.id));
+                    }
+
+                    const { data, error } = await _supabase
+                        .from("financeiro")
+                        .select("*")
+                        .order("data", { ascending: false });
+                    
+                    if (error) throw error;
+                    setLancamentosManicure(data || []);
+                } catch (err) {
+                    console.error("Erro ao carregar painel manicure:", err);
+                } finally {
+                    setLoadingManicure(false);
+                }
+            }
+
+            async function fetchFinanceiroData() {
+                setLoadingFinanceiro(true);
+                const { data, error } = await _supabase.from("financeiro").select("*").order("data", { ascending: false });
+                if (!error) setLancamentosFinanceiros(data || []);
+                setLoadingFinanceiro(false);
+            }
+
+            async function carregarRelatorioManicure() {
+                if (!_supabase) return;
+                setLoadingRelatorio(true);
                 try {
                     const { data, error } = await _supabase
                         .from('registros_manicure')
@@ -199,25 +233,18 @@
                         .order('data_atendimento', { ascending: false });
 
                     if (error) {
-                        console.error('Erro ao buscar relatórios de manicure:', error);
+                        console.error('Erro ao buscar relatórios:', error);
                     } else {
                         setRegistrosManicure(data || []);
                     }
                 } catch (e) {
                     console.error('Erro inesperado:', e);
                 } finally {
-                    setLoadingManicure(false);
+                    setLoadingRelatorio(false);
                 }
-            };
-
-            async function fetchFinanceiroData() {
-                if (!_supabase) return;
-                const { data, error } = await _supabase.from("financeiro").select("*").order("data", { ascending: false });
-                if (!error) setLancamentosFinanceiros(data || []);
             }
 
             async function deleteAgendamento(id) {
-                if (!_supabase) return;
                 if(confirm("Deseja realmente excluir este agendamento?")) {
                     const { error } = await _supabase.from("agendamentos").delete().eq("id", id);
                     if (!error) fetchData();
@@ -233,7 +260,6 @@
             const totalValorNovo = servicosSelecionados.reduce((acc, s) => acc + (Number(s.preco) || 0), 0);
 
             const handleAddAgendamento = async () => {
-                if (!_supabase) return;
                 if (!novoAgendamento.nome || servicosSelecionados.length === 0) return alert("Preencha o nome e selecione um serviço!");
                 if (novoAgendamento.aniversario && novoAgendamento.aniversario.length < 5) return alert("Insira o aniversário completo (DD/MM) ou deixe em branco!");
                 
@@ -258,9 +284,38 @@
                 }
             };
 
+            const toggleServicoManicure = (id) => {
+                setServicosSelecionadosIds(prev => 
+                    prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+                );
+            };
+
+            const selecionarTodosManicure = () => setServicosSelecionadosIds(servicosManicure.map(s => s.id));
+            const limparSelecaoManicure = () => setServicosSelecionadosIds([]);
+
+            const lancamentosFiltradosManicure = lancamentosManicure.filter(l => {
+                if (!l.data) return false;
+                const dataItem = l.data.split('T')[0];
+                if (dataInicio && dataFim) {
+                    if (dataItem < dataInicio || dataItem > dataFim) return false;
+                }
+                if (l.tipo && l.tipo !== "entrada") return false; 
+                if (servicosSelecionadosIds.length === 0) return false;
+                if (l.servico_id) {
+                    return servicosSelecionadosIds.includes(l.servico_id);
+                }
+                const nomeItem = (l.item || l.servico || "").toUpperCase();
+                const servicosAtivosNomes = servicosManicure
+                    .filter(s => servicosSelecionadosIds.includes(s.id))
+                    .map(s => s.nome.toUpperCase());
+
+                return servicosAtivosNomes.some(nomeServico => nomeItem.includes(nomeServico));
+            });
+
+            const valorTotalPagamentoManicure = lancamentosFiltradosManicure.reduce((acc, l) => acc + (Number(l.valor) || 0), 0);
+
             const handleSaveFinanceiro = async (e) => {
                 e.preventDefault();
-                if (!_supabase) return;
                 const valorNumerico = parseFloat(String(formDataFinanceiro.valor).replace(",", ".")) || 0;
                 const payload = {
                     item: formDataFinanceiro.item.toUpperCase(),
@@ -309,7 +364,7 @@
             };
 
             const salvarExcecao = async () => {
-                if (!selectedDateISO || !_supabase) return;
+                if (!selectedDateISO) return;
                 setLoading(true);
                 const { error } = await _supabase.from('agenda_excecoes').upsert({
                     data: selectedDateISO,
@@ -328,7 +383,7 @@
             };
 
             const toggleHorarioPontual = async (horarioStr) => {
-                if (!selectedDateISO || !_supabase) return;
+                if (!selectedDateISO) return;
                 const inativadosAtuais = horariosInativadosMap[selectedDateISO] || [];
                 const jaInativado = inativadosAtuais.includes(horarioStr);
 
@@ -375,7 +430,7 @@
             };
 
             const toggleBloqueioDiaModal = async () => {
-                if (!selectedDateISO || !_supabase) return;
+                if (!selectedDateISO) return;
                 const jaBloqueado = bloqueios.includes(selectedDateISO);
                 if (jaBloqueado) {
                     setBloqueios(prev => prev.filter(d => d !== selectedDateISO));
@@ -401,7 +456,6 @@
                         h("button", {
                             disabled: loading,
                             onClick: async () => {
-                                if (!_supabase) return;
                                 const novoStatus = !isLiberado;
                                 setMesesLiberados(prev => novoStatus ? [...prev, mesAnoKey] : prev.filter(m => m !== mesAnoKey));
                                 const { error } = await _supabase.from('meses_liberados').upsert(
@@ -410,7 +464,7 @@
                                 );
                                 if (error) { console.error(error); fetchAgendaConfigData(); }
                             },
-                            className: `flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-sm transition-all ${isLiberado ? 'bg-[#bf953f] text-white' : 'bg-zinc-200 text-zinc-500'}`
+                            className: `flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase shadow-sm transition-all ${isLiberado ? 'bg-[#bf953f] text-black' : 'bg-zinc-200 text-zinc-500'}`
                         }, isLiberado ? 'Aberto' : 'Trancado')
                     ),
                     h("div", { className: "grid grid-cols-7 gap-1 text-center mb-4 text-[10px] font-bold text-zinc-400" },
@@ -449,16 +503,6 @@
                 financeiro: clientesFiltrados.reduce((acc, c) => acc + Number(c.valor || 0), 0)
             };
 
-            // Filtragem específica para o Relatório Manicure
-            const registrosManicureFiltrados = registrosManicure.filter(item => {
-                if (!item.data_atendimento) return true;
-                if (dataInicioManicure && item.data_atendimento < dataInicioManicure) return false;
-                if (dataFimManicure && item.data_atendimento > dataFimManicure) return false;
-                return true;
-            });
-
-            const valorTotalPeriodoManicure = registrosManicureFiltrados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-
             return h("div", { className: "min-h-screen flex flex-col pb-20 relative", style: { background: palette.bg } },
                 h("header", { className: "bg-white border-b border-gray-100 p-6 sticky top-0 z-20 shadow-sm" },
                     h("div", { className: "max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6" },
@@ -470,9 +514,13 @@
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agendamentos" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
                                 }, "Agendamentos"),
                                 h("button", { 
-                                    onClick: () => setCurrentTab("relatorio_manicure"), 
-                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "relatorio_manicure" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
-                                }, "Relatório Manicure"),
+                                    onClick: () => setCurrentTab("manicure"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "manicure" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Painel Manicure"),
+                                h("button", { 
+                                    onClick: () => setCurrentTab("relatorios"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "relatorios" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Relatórios Manicure"),
                                 h("button", { 
                                     onClick: () => setCurrentTab("financeiro"), 
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "financeiro" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
@@ -493,7 +541,7 @@
                                     onChange: (e) => setSearchTerm(e.target.value)
                                 })
                             ),
-                            h("button", { onClick: () => setIsModalOpen(true), className: "flex items-center gap-2 px-6 py-3 gold-bg text-white rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all cursor-pointer" }, "+ Novo Agendamento"),
+                            h("button", { onClick: () => setIsModalOpen(true), className: "flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all cursor-pointer" }, "+ Novo Agendamento"),
                             h("input", { type: "date", className: "bg-gray-100 p-3 rounded-2xl text-xs font-black outline-none uppercase cursor-pointer", value: filterDate, onChange: (e) => setFilterDate(e.target.value) })
                         ),
                         currentTab === "financeiro" && h("div", { className: "flex flex-wrap items-center gap-3 bg-gray-50 p-2 rounded-2xl border border-gray-200" },
@@ -564,62 +612,167 @@
                             )
                         ),
                         clientesFiltrados.length === 0 && h("div", { key: "s3", className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
-                    ] : currentTab === "relatorio_manicure" ? [
-                        // ABA RELATÓRIO MANICURE INTEGRADA
-                        h("div", { key: "rel-manicure", className: "bg-white p-6 md:p-8 rounded-[2rem] shadow-xl space-y-6 max-w-3xl mx-auto" },
-                            h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
-                                h("h1", { className: "text-2xl font-black" }, "Relatório de ", h("span", { className: "gold-text" }, "Manicure")),
-                                h("button", { 
-                                    onClick: carregarRelatorioManicure, 
-                                    className: "text-xs bg-zinc-100 hover:bg-zinc-200 font-bold px-4 py-2 rounded-lg transition-all cursor-pointer" 
-                                }, "Atualizar Dados")
-                            ),
-
-                            h("div", { className: "grid grid-cols-1 md:grid-cols-2 gap-4 bg-zinc-50 p-4 rounded-2xl border border-zinc-100" },
-                                h("div", {},
-                                    h("label", { className: "block text-xs font-bold text-zinc-500 mb-1" }, "Data Inicial"),
-                                    h("input", { 
-                                        type: "date", 
-                                        value: dataInicioManicure, 
-                                        onChange: (e) => setDataInicioManicure(e.target.value), 
-                                        className: "w-full bg-white p-3 rounded-xl border border-zinc-200 text-sm cursor-pointer" 
-                                    })
-                                ),
-                                h("div", {},
-                                    h("label", { className: "block text-xs font-bold text-zinc-500 mb-1" }, "Data Final"),
-                                    h("input", { 
-                                        type: "date", 
-                                        value: dataFimManicure, 
-                                        onChange: (e) => setDataFimManicure(e.target.value), 
-                                        className: "w-full bg-white p-3 rounded-xl border border-zinc-200 text-sm cursor-pointer" 
-                                    })
-                                )
-                            ),
-
-                            h("div", { className: "gold-bg text-white p-6 rounded-2xl flex justify-between items-center shadow-md" },
-                                h("div", {},
-                                    h("p", { className: "text-xs uppercase font-bold tracking-wider opacity-90" }, "Total no Período"),
-                                    h("p", { className: "text-3xl font-black mt-1" }, `R$ ${valorTotalPeriodoManicure.toFixed(2)}`)
-                                ),
-                                h("div", { className: "text-right" },
-                                    h("p", { className: "text-xs opacity-90 font-medium" }, `${registrosManicureFiltrados.length} atendimento(s)`)
-                                )
-                            ),
-
-                            loadingManicure ? h("p", { className: "text-center text-zinc-400 py-8 font-bold text-xs" }, "Carregando lançamentos...") :
-                            registrosManicureFiltrados.length === 0 ? h("p", { className: "text-center text-zinc-400 py-8 font-bold text-xs" }, "Nenhum atendimento encontrado para o período selecionado.") :
-                            h("div", { className: "space-y-3 max-h-[50vh] overflow-y-auto pr-1 custom-scroll" },
-                                registrosManicureFiltrados.map(item => 
-                                    h("div", { key: item.id || item.criado_em, className: "p-4 bg-zinc-50 rounded-xl border border-zinc-100 flex justify-between items-center" },
-                                        h("div", {},
-                                            h("p", { className: "font-bold text-zinc-800 uppercase" }, item.cliente),
-                                            h("p", { className: "text-xs text-zinc-500 mt-0.5" }, `${item.data_atendimento} • ${item.servico}`)
+                    ] : currentTab === "manicure" ? [
+                        h("div", { key: "m1", className: "w-full space-y-10" },
+                            h("div", { className: "max-w-7xl mx-auto space-y-10" },
+                                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
+                                    h("div", null,
+                                        h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Rivi Silva Performance"),
+                                        h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Painel da ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
+                                    ),
+                                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
+                                        h("div", { className: "flex items-center gap-2" },
+                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
+                                            h("input", { type: "date", value: dataInicio, onChange: (e) => setDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
                                         ),
-                                        h("div", { className: "text-right" },
-                                            h("p", { className: "font-black gold-text text-base" }, `R$ ${Number(item.valor || 0).toFixed(2)}`)
+                                        h("div", { className: "flex items-center gap-2" },
+                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
+                                            h("input", { type: "date", value: dataFim, onChange: (e) => setDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
+                                        ),
+                                        h("button", { onClick: loadManicureData, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
+                                    )
+                                ),
+                                h("div", { className: "bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100 space-y-4" },
+                                    h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
+                                        h("h3", { className: "text-xs font-black uppercase tracking-[0.3em] text-zinc-400" }, "Serviços Considerados no Cálculo:"),
+                                        h("div", { className: "flex gap-2" },
+                                            h("button", { onClick: selecionarTodosManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Selecionar Todos"),
+                                            h("button", { onClick: limparSelecaoManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Limpar")
+                                        )
+                                    ),
+                                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
+                                        servicosManicure.map((serv) => {
+                                            const selecionado = servicosSelecionadosIds.includes(serv.id);
+                                            return h("div", { 
+                                                key: serv.id, 
+                                                onClick: () => toggleServicoManicure(serv.id),
+                                                className: `p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
+                                                    selecionado ? 'bg-amber-50/70 border-[#bf953f] shadow-sm ring-2 ring-[#bf953f]/20' : 'bg-zinc-50 border-zinc-100 hover:border-zinc-300'
+                                                }`
+                                            },
+                                                h("div", null,
+                                                    h("p", { className: "font-black text-xs uppercase text-zinc-900" }, serv.nome),
+                                                    h("p", { className: "text-xs font-bold text-[#bf953f] mt-0.5" }, `R$ ${Number(serv.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                                ),
+                                                h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
+                                                    selecionado ? 'bg-[#bf953f] text-white shadow' : 'bg-white border border-zinc-200 text-zinc-300'
+                                                }` }, selecionado ? "✓" : "")
+                                            );
+                                        })
+                                    )
+                                ),
+                                h("div", { className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
+                                    h("div", { className: "z-10" },
+                                        h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Valor Total a Pagar no Período Selecionado"),
+                                        h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPagamentoManicure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
+                                        h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${lancamentosFiltradosManicure.length} lançamentos entre ${dataInicio?.split('-').reverse().join('/')} e ${dataFim?.split('-').reverse().join('/')}.`)
+                                    )
+                                ),
+                                h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
+                                    h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
+                                        h("div", null,
+                                            h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Extrato Detalhado do Período"),
+                                            h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Lista de cada atendimento que compõe este valor:")
+                                        ),
+                                        h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosManicure.length} Registros`)
+                                    ),
+                                    loadingManicure ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
+                                    h("div", { className: "overflow-x-auto" },
+                                        h("table", { className: "w-full text-left" },
+                                            h("tbody", { className: "divide-y divide-zinc-50" },
+                                                lancamentosFiltradosManicure.length === 0 ? h("tr", null,
+                                                    h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 2 }, "Nenhum atendimento encontrado para os serviços e datas selecionados.")
+                                                ) : lancamentosFiltradosManicure.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                                    h("td", { className: "p-8" },
+                                                        h("div", { className: "flex items-center gap-5" },
+                                                            h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "💅"),
+                                                            h("div", null,
+                                                                h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
+                                                                h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
+                                                                    "Categoria: ", h("span", { className: "text-zinc-700" }, l.categoria || "Geral"), " | Data: ", l.data?.split('-').reverse().join('/')
+                                                                )
+                                                            )
+                                                        )
+                                                    ),
+                                                    h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `+ R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                                ))
+                                            )
                                         )
                                     )
                                 )
+                            )
+                        )
+                    ] : currentTab === "relatorios" ? [
+                        h("div", { key: "r1", className: "w-full space-y-10" },
+                            h("div", { className: "max-w-7xl mx-auto space-y-10" },
+                                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
+                                    h("div", null,
+                                        h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Performance de Vendas"),
+                                        h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Relatórios de ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
+                                    ),
+                                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
+                                        h("div", { className: "flex items-center gap-2" },
+                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
+                                            h("input", { type: "date", value: relatorioDataInicio, onChange: (e) => setRelatorioDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
+                                        ),
+                                        h("div", { className: "flex items-center gap-2" },
+                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
+                                            h("input", { type: "date", value: relatorioDataFim, onChange: (e) => setRelatorioDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
+                                        ),
+                                        h("button", { onClick: carregarRelatorioManicure, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
+                                    )
+                                ),
+                                (() => {
+                                    const registrosFiltrados = registrosManicure.filter(item => {
+                                        if (!item.data_atendimento) return true;
+                                        if (relatorioDataInicio && item.data_atendimento < relatorioDataInicio) return false;
+                                        if (relatorioDataFim && item.data_atendimento > relatorioDataFim) return false;
+                                        return true;
+                                    });
+                                    
+                                    const valorTotalPeriodo = registrosFiltrados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+                                    
+                                    return [
+                                        h("div", { key: "r2", className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
+                                            h("div", { className: "z-10" },
+                                                h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Total no Período"),
+                                                h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
+                                                h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `${registrosFiltrados.length} atendimento(s) registrado(s)`)
+                                            )
+                                        ),
+                                        h("div", { key: "r3", className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
+                                            h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
+                                                h("div", null,
+                                                    h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Detalhamento dos Atendimentos"),
+                                                    h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Listagem completa de cada atendimento:")
+                                                ),
+                                                h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${registrosFiltrados.length} Registros`)
+                                            ),
+                                            loadingRelatorio ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
+                                            h("div", { className: "overflow-x-auto" },
+                                                h("table", { className: "w-full text-left" },
+                                                    h("tbody", { className: "divide-y divide-zinc-50" },
+                                                        registrosFiltrados.length === 0 ? h("tr", null,
+                                                            h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 3 }, "Nenhum atendimento encontrado para o período selecionado.")
+                                                        ) : registrosFiltrados.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                                            h("td", { className: "p-8" },
+                                                                h("div", { className: "flex items-center gap-5" },
+                                                                    h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "👩"),
+                                                                    h("div", null,
+                                                                        h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.cliente),
+                                                                        h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" }, l.servico || "Serviço")
+                                                                    )
+                                                                )
+                                                            ),
+                                                            h("td", { className: "p-8 text-center font-bold text-xs text-zinc-600" }, l.data_atendimento?.split('-').reverse().join('/') || ""),
+                                                            h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                                        ))
+                                                    )
+                                                )
+                                            )
+                                        )
+                                    ];
+                                })()
                             )
                         )
                     ] : currentTab === "financeiro" ? [
@@ -676,7 +829,6 @@
                                                 h("td", { className: "p-8 text-right" },
                                                     h("button", {
                                                         onClick: async () => {
-                                                            if (!_supabase) return;
                                                             if(confirm("Excluir?")) {
                                                                 await _supabase.from("financeiro").delete().eq("id", l.id);
                                                                 fetchFinanceiroData();
@@ -712,7 +864,6 @@
                                     h("button", {
                                         disabled: loading,
                                         onClick: async () => {
-                                            if (!_supabase) return;
                                             setLoading(true);
                                             const { error } = await _supabase.from('agenda_config').upsert({ 
                                                 id: 1, 
@@ -724,7 +875,7 @@
                                             if (!error) alert("Configurações Salvas!");
                                             else alert("Erro ao salvar no banco.");
                                         },
-                                        className: "bg-[#bf953f] text-white font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
+                                        className: "bg-[#bf953f] text-black font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
                                     }, "Salvar Configurações")
                                 )
                             ),
@@ -779,7 +930,7 @@
                                     h("span", { className: "text-[9px] font-black uppercase text-[#bf953f]" }, "Total:"),
                                     h("span", { className: "font-black italic text-xl" }, `R$ ${totalValorNovo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`)
                                 ),
-                                h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-white font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
+                                h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
                             )
                         )
                     )
@@ -866,7 +1017,7 @@
 
                         h("button", { 
                             onClick: () => setIsConfigModalOpen(false),
-                            className: "w-full bg-[#bf953f] text-white font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl cursor-pointer"
+                            className: "w-full bg-[#bf953f] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl cursor-pointer"
                         }, "Concluir")
                     )
                 ),
