@@ -831,7 +831,7 @@
                                 h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
                             )
                         )
-                    ]
+                    )
                 ),
 
                 isFinanceiroModalOpen && h("div", { className: "fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" },
@@ -911,6 +911,13 @@
                                     }, slot, h("span", { className: "text-[8px] uppercase tracking-tighter mt-0.5 font-bold" }, isInativado ? 'Bloqueado' : 'Disponível'))
                                 })
                             )
-                        ),
+                        )
+                    )
+                )
+            );
+        }
 
-                        h("button", {
+        ReactDOM.render(h(Dashboard), document.getElementById('root'));
+    </script>
+</body>
+</html>
