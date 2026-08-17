@@ -831,7 +831,7 @@
                                 h("button", { onClick: handleAddAgendamento, className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" }, "Confirmar")
                             )
                         )
-                    )
+                    ]
                 ),
 
                 isFinanceiroModalOpen && h("div", { className: "fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md" },
@@ -913,21 +913,4 @@
                             )
                         ),
 
-                        h("button", { 
-                            onClick: () => setIsConfigModalOpen(false),
-                            className: "w-full bg-[#bf953f] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl cursor-pointer"
-                        }, "Concluir")
-                    )
-                ),
-
-                h("footer", { className: "fixed bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-gray-100 p-4 text-center z-10" },
-                    h("p", { className: "text-[10px] font-bold text-gray-400 uppercase tracking-[0.4em]" }, "© 2026 Rivi Silva Style")
-                )
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(h(Dashboard));
-    </script>
-</body>
-</html>
+                        h("button", {
