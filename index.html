@@ -91,6 +91,10 @@
             const [tempInicio, setTempInicio] = useState('');
             const [tempFim, setTempFim] = useState('');
             const [horariosInativadosMap, setHorariosInativadosMap] = useState({});
+            const [horariosExtrasMap, setHorariosExtrasMap] = useState({});
+            
+            const [horarioEditando, setHorarioEditando] = useState(null);
+            const [novoValorHorario, setNovoValorHorario] = useState("");
 
             const [servicosManicure, setServicosManicure] = useState([]);
             const [lancamentosManicure, setLancamentosManicure] = useState([]);
@@ -178,6 +182,7 @@
                     fetchAgendaConfigData();
                     fetchFinanceiroData();
                     loadManicureData();
+                    carregarRelatorioManicure();
                 }
             }, [isAuth, filterDate, fetchAgendaConfigData]);
 
@@ -360,6 +365,7 @@
                 const confAtiva = excecoes[dateISO] || config;
                 setTempInicio(confAtiva.inicio);
                 setTempFim(confAtiva.fim);
+                setHorarioEditando(null);
                 setIsConfigModalOpen(true);
             };
 
@@ -426,7 +432,18 @@
                     slots.push(`${hh}:${mm}`);
                     minutosAtuais += intervalo;
                 }
-                return slots;
+
+                const customSlots = horariosInativadosMap[selectedDateISO] || [];
+                const extras = horariosExtrasMap[selectedDateISO] || [];
+                const combined = [...new Set([...slots, ...extras])];
+                
+                combined.sort((a, b) => {
+                    const [ha, ma] = a.split(':').map(Number);
+                    const [hb, mb] = b.split(':').map(Number);
+                    return (ha * 60 + ma) - (hb * 60 + mb);
+                });
+
+                return combined;
             };
 
             const toggleBloqueioDiaModal = async () => {
@@ -564,7 +581,7 @@
                 ),
 
                 h("main", { className: "max-w-7xl mx-auto w-full p-8 space-y-8" },
-                    currentTab === "agendamentos" ? [
+                    currentTab === "agendamentos" ? h("div", { className: "space-y-8" },
                         h("div", { key: "s1", className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
                             h("div", { className: "bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100" },
                                 h("p", { className: "text-[9px] font-black text-gray-400 uppercase" }, "Agendados no filtro"),
@@ -612,283 +629,275 @@
                             )
                         ),
                         clientesFiltrados.length === 0 && h("div", { key: "s3", className: "p-20 text-center text-gray-300 font-black uppercase text-xs tracking-widest" }, "Nenhum agendamento encontrado")
-                    ] : currentTab === "manicure" ? [
-                        h("div", { key: "m1", className: "w-full space-y-10" },
-                            h("div", { className: "max-w-7xl mx-auto space-y-10" },
-                                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
-                                    h("div", null,
-                                        h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Rivi Silva Performance"),
-                                        h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Painel da ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
-                                    ),
-                                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
-                                            h("input", { type: "date", value: dataInicio, onChange: (e) => setDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
-                                            h("input", { type: "date", value: dataFim, onChange: (e) => setDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("button", { onClick: loadManicureData, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
-                                    )
+                    ) : currentTab === "manicure" ? h("div", { className: "w-full space-y-10" },
+                        h("div", { className: "max-w-7xl mx-auto space-y-10" },
+                            h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
+                                h("div", null,
+                                    h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Rivi Silva Performance"),
+                                    h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Painel da ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
                                 ),
-                                h("div", { className: "bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100 space-y-4" },
-                                    h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
-                                        h("h3", { className: "text-xs font-black uppercase tracking-[0.3em] text-zinc-400" }, "Serviços Considerados no Cálculo:"),
-                                        h("div", { className: "flex gap-2" },
-                                            h("button", { onClick: selecionarTodosManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Selecionar Todos"),
-                                            h("button", { onClick: limparSelecaoManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Limpar")
-                                        )
+                                h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
+                                    h("div", { className: "flex items-center gap-2" },
+                                        h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
+                                        h("input", { type: "date", value: dataInicio, onChange: (e) => setDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
                                     ),
-                                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
-                                        servicosManicure.map((serv) => {
-                                            const selecionado = servicosSelecionadosIds.includes(serv.id);
-                                            return h("div", { 
-                                                key: serv.id, 
-                                                onClick: () => toggleServicoManicure(serv.id),
-                                                className: `p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
-                                                    selecionado ? 'bg-amber-50/70 border-[#bf953f] shadow-sm ring-2 ring-[#bf953f]/20' : 'bg-zinc-50 border-zinc-100 hover:border-zinc-300'
-                                                }`
-                                            },
-                                                h("div", null,
-                                                    h("p", { className: "font-black text-xs uppercase text-zinc-900" }, serv.nome),
-                                                    h("p", { className: "text-xs font-bold text-[#bf953f] mt-0.5" }, `R$ ${Number(serv.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                ),
-                                                h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
-                                                    selecionado ? 'bg-[#bf953f] text-white shadow' : 'bg-white border border-zinc-200 text-zinc-300'
-                                                }` }, selecionado ? "✓" : "")
-                                            );
-                                        })
-                                    )
-                                ),
-                                h("div", { className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
-                                    h("div", { className: "z-10" },
-                                        h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Valor Total a Pagar no Período Selecionado"),
-                                        h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPagamentoManicure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
-                                        h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${lancamentosFiltradosManicure.length} lançamentos entre ${dataInicio?.split('-').reverse().join('/')} e ${dataFim?.split('-').reverse().join('/')}.`)
-                                    )
-                                ),
-                                h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
-                                    h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
-                                        h("div", null,
-                                            h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Extrato Detalhado do Período"),
-                                            h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Lista de cada atendimento que compõe este valor:")
-                                        ),
-                                        h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosManicure.length} Registros`)
+                                    h("div", { className: "flex items-center gap-2" },
+                                        h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
+                                        h("input", { type: "date", value: dataFim, onChange: (e) => setDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
                                     ),
-                                    loadingManicure ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
-                                    h("div", { className: "overflow-x-auto" },
-                                        h("table", { className: "w-full text-left" },
-                                            h("tbody", { className: "divide-y divide-zinc-50" },
-                                                lancamentosFiltradosManicure.length === 0 ? h("tr", null,
-                                                    h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 2 }, "Nenhum atendimento encontrado para os serviços e datas selecionados.")
-                                                ) : lancamentosFiltradosManicure.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
-                                                    h("td", { className: "p-8" },
-                                                        h("div", { className: "flex items-center gap-5" },
-                                                            h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "💅"),
-                                                            h("div", null,
-                                                                h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
-                                                                h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                    "Categoria: ", h("span", { className: "text-zinc-700" }, l.categoria || "Geral"), " | Data: ", l.data?.split('-').reverse().join('/')
-                                                                )
-                                                            )
-                                                        )
-                                                    ),
-                                                    h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `+ R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                ))
-                                            )
-                                        )
-                                    )
+                                    h("button", { onClick: loadManicureData, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
                                 )
-                            )
-                        )
-                    ] : currentTab === "relatorios" ? [
-                        h("div", { key: "r1", className: "w-full space-y-10" },
-                            h("div", { className: "max-w-7xl mx-auto space-y-10" },
-                                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
-                                    h("div", null,
-                                        h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Performance de Vendas"),
-                                        h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Relatórios de ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
-                                    ),
-                                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
-                                            h("input", { type: "date", value: relatorioDataInicio, onChange: (e) => setRelatorioDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("div", { className: "flex items-center gap-2" },
-                                            h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
-                                            h("input", { type: "date", value: relatorioDataFim, onChange: (e) => setRelatorioDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
-                                        ),
-                                        h("button", { onClick: carregarRelatorioManicure, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
+                            ),
+                            h("div", { className: "bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100 space-y-4" },
+                                h("div", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
+                                    h("h3", { className: "text-xs font-black uppercase tracking-[0.3em] text-zinc-400" }, "Serviços Considerados no Cálculo:"),
+                                    h("div", { className: "flex gap-2" },
+                                        h("button", { onClick: selecionarTodosManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Selecionar Todos"),
+                                        h("button", { onClick: limparSelecaoManicure, className: "text-[10px] font-black uppercase tracking-wider bg-zinc-100 px-4 py-2 rounded-xl hover:bg-zinc-200 text-zinc-700 transition-all cursor-pointer" }, "Limpar")
                                     )
                                 ),
-                                (() => {
-                                    const registrosFiltrados = registrosManicure.filter(item => {
-                                        if (!item.data_atendimento) return true;
-                                        if (relatorioDataInicio && item.data_atendimento < relatorioDataInicio) return false;
-                                        if (relatorioDataFim && item.data_atendimento > relatorioDataFim) return false;
-                                        return true;
-                                    });
-                                    
-                                    const valorTotalPeriodo = registrosFiltrados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-                                    
-                                    return [
-                                        h("div", { key: "r2", className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
-                                            h("div", { className: "z-10" },
-                                                h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Total no Período"),
-                                                h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
-                                                h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `${registrosFiltrados.length} atendimento(s) registrado(s)`)
-                                            )
-                                        ),
-                                        h("div", { key: "r3", className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
-                                            h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
-                                                h("div", null,
-                                                    h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Detalhamento dos Atendimentos"),
-                                                    h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Listagem completa de cada atendimento:")
-                                                ),
-                                                h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${registrosFiltrados.length} Registros`)
+                                h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" },
+                                    servicosManicure.map((serv) => {
+                                        const selecionado = servicosSelecionadosIds.includes(serv.id);
+                                        return h("div", { 
+                                            key: serv.id, 
+                                            onClick: () => toggleServicoManicure(serv.id),
+                                            className: `p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${
+                                                selecionado ? 'bg-amber-50/70 border-[#bf953f] shadow-sm ring-2 ring-[#bf953f]/20' : 'bg-zinc-50 border-zinc-100 hover:border-zinc-300'
+                                            }`
+                                        },
+                                            h("div", null,
+                                                h("p", { className: "font-black text-xs uppercase text-zinc-900" }, serv.nome),
+                                                h("p", { className: "text-xs font-bold text-[#bf953f] mt-0.5" }, `R$ ${Number(serv.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                             ),
-                                            loadingRelatorio ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
-                                            h("div", { className: "overflow-x-auto" },
-                                                h("table", { className: "w-full text-left" },
-                                                    h("tbody", { className: "divide-y divide-zinc-50" },
-                                                        registrosFiltrados.length === 0 ? h("tr", null,
-                                                            h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 3 }, "Nenhum atendimento encontrado para o período selecionado.")
-                                                        ) : registrosFiltrados.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
-                                                            h("td", { className: "p-8" },
-                                                                h("div", { className: "flex items-center gap-5" },
-                                                                    h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "👩"),
-                                                                    h("div", null,
-                                                                        h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.cliente),
-                                                                        h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" }, l.servico || "Serviço")
-                                                                    )
-                                                                )
-                                                            ),
-                                                            h("td", { className: "p-8 text-center font-bold text-xs text-zinc-600" }, l.data_atendimento?.split('-').reverse().join('/') || ""),
-                                                            h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                                        ))
-                                                    )
-                                                )
-                                            )
-                                        )
-                                    ];
-                                })()
-                            )
-                        )
-                    ] : currentTab === "financeiro" ? [
-                        h("div", { key: "f1", className: "space-y-10" },
-                            h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8" },
-                                h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500 font-bold text-xs uppercase" },
-                                        `Receitas (${MESES[filtroMesFin-1]})`
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-emerald-600" }, `R$ ${totalEntradasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                ),
-                                h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-rose-500 font-bold text-xs uppercase" },
-                                        `Despesas (${MESES[filtroMesFin-1]})`
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-rose-600" }, `R$ ${totalSaidasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
-                                ),
-                                h("div", { className: "p-10 rounded-[45px] border border-[#bf953f]/40 ring-1 ring-[#bf953f]/10 bg-white shadow-xl shadow-zinc-200/40" },
-                                    h("div", { className: "flex items-center gap-3 mb-3 text-[#bf953f] font-bold text-xs uppercase" },
-                                        "Lucro Líquido"
-                                    ),
-                                    h("h2", { className: "text-4xl font-black italic tracking-tighter text-[#bf953f]" }, `R$ ${lucroRealFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                            h("div", { className: `w-6 h-6 rounded-xl flex items-center justify-center transition-all ${
+                                                selecionado ? 'bg-[#bf953f] text-white shadow' : 'bg-white border border-zinc-200 text-zinc-300'
+                                            }` }, selecionado ? "✓" : "")
+                                        );
+                                    })
+                                )
+                            ),
+                            h("div", { className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
+                                h("div", { className: "z-10" },
+                                    h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Valor Total a Pagar no Período Selecionado"),
+                                    h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPagamentoManicure.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
+                                    h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `Calculado com base em ${lancamentosFiltradosManicure.length} lançamentos entre ${dataInicio?.split('-').reverse().join('/')} e ${dataFim?.split('-').reverse().join('/')}.`)
                                 )
                             ),
                             h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
                                 h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
-                                    h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, `Extrato de ${MESES[filtroMesFin-1]} / ${filtroAnoFin}`),
-                                    h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosFin.length} Registros`)
+                                    h("div", null,
+                                        h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Extrato Detalhado do Período"),
+                                        h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Lista de cada atendimento que compõe este valor:")
+                                    ),
+                                    h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosManicure.length} Registros`)
                                 ),
+                                loadingManicure ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
                                 h("div", { className: "overflow-x-auto" },
                                     h("table", { className: "w-full text-left" },
                                         h("tbody", { className: "divide-y divide-zinc-50" },
-                                            lancamentosFiltradosFin.length === 0 ? h("tr", null,
-                                                h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]" }, "Sem movimentações neste período")
-                                            ) : lancamentosFiltradosFin.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                            lancamentosFiltradosManicure.length === 0 ? h("tr", null,
+                                                h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 2 }, "Nenhum atendimento encontrado para os serviços e datas selecionados.")
+                                            ) : lancamentosFiltradosManicure.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
                                                 h("td", { className: "p-8" },
                                                     h("div", { className: "flex items-center gap-5" },
-                                                        h("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${l.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}` },
-                                                            l.tipo === 'entrada' ? '+' : '-'
-                                                        ),
+                                                        h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "💅"),
                                                         h("div", null,
                                                             h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
                                                             h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
-                                                                l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
+                                                                "Categoria: ", h("span", { className: "text-zinc-700" }, l.categoria || "Geral"), " | Data: ", l.data?.split('-').reverse().join('/')
                                                             )
                                                         )
                                                     )
                                                 ),
-                                                h("td", { className: "p-8 text-right font-black text-lg tracking-tighter" },
-                                                    h("span", { className: l.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600' },
-                                                        `${l.tipo === 'saida' ? '- ' : '+ '}R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-                                                    )
-                                                ),
-                                                h("td", { className: "p-8 text-right" },
-                                                    h("button", {
-                                                        onClick: async () => {
-                                                            if(confirm("Excluir?")) {
-                                                                await _supabase.from("financeiro").delete().eq("id", l.id);
-                                                                fetchFinanceiroData();
-                                                            }
-                                                        },
-                                                        className: "text-zinc-200 hover:text-rose-500 transition-all font-bold text-xs cursor-pointer"
-                                                    }, "Excluir")
-                                                )
+                                                h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `+ R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                                             ))
                                         )
                                     )
                                 )
                             )
                         )
-                    ] : [
-                        h("div", { key: "c1", className: "space-y-8" },
-                            h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
-                                h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
-                                    h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
-                                    h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
+                    ) : currentTab === "relatorios" ? h("div", { className: "w-full space-y-10" },
+                        h("div", { className: "max-w-7xl mx-auto space-y-10" },
+                            h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6 bg-white p-8 rounded-[45px] shadow-sm border border-zinc-100" },
+                                h("div", null,
+                                    h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Performance de Vendas"),
+                                    h("h1", { className: "text-4xl font-light text-zinc-900 tracking-tighter mt-1" }, "Relatórios de ", h("span", { className: "font-black italic", style: { color: palette.gold } }, "Manicure"))
                                 ),
-                                h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
-                                    h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("div", { className: "flex items-center gap-3" },
-                                            h("input", { type: "time", value: config.inicio, onChange: e => setConfig({...config, inicio: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" }),
-                                            h("span", { className: "font-bold text-zinc-400" }, "até"),
-                                            h("input", { type: "time", value: config.fim, onChange: e => setConfig({...config, fim: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" })
-                                        )
+                                h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-50 p-3 rounded-2xl border border-zinc-100" },
+                                    h("div", { className: "flex items-center gap-2" },
+                                        h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Início:"),
+                                        h("input", { type: "date", value: relatorioDataInicio, onChange: (e) => setRelatorioDataInicio(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
                                     ),
-                                    h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
-                                        h("input", { type: "number", value: config.intervalo, onChange: e => setConfig({...config, intervalo: parseInt(e.target.value) || 0}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-20 text-center outline-none" })
+                                    h("div", { className: "flex items-center gap-2" },
+                                        h("span", { className: "text-[10px] font-black uppercase text-zinc-400" }, "Até:"),
+                                        h("input", { type: "date", value: relatorioDataFim, onChange: (e) => setRelatorioDataFim(e.target.value), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold text-xs outline-none focus:border-[#bf953f] cursor-pointer" })
                                     ),
-                                    h("button", {
-                                        disabled: loading,
-                                        onClick: async () => {
-                                            setLoading(true);
-                                            const { error } = await _supabase.from('agenda_config').upsert({ 
-                                                id: 1, 
-                                                hora_inicio: config.inicio, 
-                                                hora_fim: config.fim, 
-                                                intervalo_minutos: config.intervalo 
-                                            }, { onConflict: 'id' });
-                                            setLoading(false);
-                                            if (!error) alert("Configurações Salvas!");
-                                            else alert("Erro ao salvar no banco.");
-                                        },
-                                        className: "bg-[#bf953f] text-black font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
-                                    }, "Salvar Configurações")
+                                    h("button", { onClick: carregarRelatorioManicure, className: "bg-black text-white px-5 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-[#bf953f] transition-all flex items-center gap-2 cursor-pointer ml-1" }, "Atualizar")
                                 )
                             ),
-                            h("div", { className: "flex flex-col lg:flex-row gap-8" },
-                                renderMonth(viewDate),
-                                renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
+                            (() => {
+                                const registrosFiltrados = registrosManicure.filter(item => {
+                                    if (!item.data_atendimento) return true;
+                                    if (relatorioDataInicio && item.data_atendimento < relatorioDataInicio) return false;
+                                    if (relatorioDataFim && item.data_atendimento > relatorioDataFim) return false;
+                                    return true;
+                                });
+                                
+                                const valorTotalPeriodo = registrosFiltrados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+                                
+                                return h("div", { className: "space-y-10" },
+                                    h("div", { className: "bg-black text-white p-10 rounded-[45px] shadow-2xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden" },
+                                        h("div", { className: "z-10" },
+                                            h("p", { className: "text-[11px] font-black uppercase tracking-[0.4em]", style: { color: palette.gold } }, "Total no Período"),
+                                            h("h2", { className: "text-5xl font-black italic tracking-tighter mt-2" }, `R$ ${valorTotalPeriodo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`),
+                                            h("p", { className: "text-xs text-zinc-400 mt-2 font-medium" }, `${registrosFiltrados.length} atendimento(s) registrado(s)`)
+                                        )
+                                    ),
+                                    h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
+                                        h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
+                                            h("div", null,
+                                                h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Detalhamento dos Atendimentos"),
+                                                h("p", { className: "text-sm font-bold text-zinc-800 mt-0.5" }, "Listagem completa de cada atendimento:")
+                                            ),
+                                            h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${registrosFiltrados.length} Registros`)
+                                        ),
+                                        loadingRelatorio ? h("div", { className: "flex justify-center py-20" }, "Carregando...") :
+                                        h("div", { className: "overflow-x-auto" },
+                                            h("table", { className: "w-full text-left" },
+                                                h("tbody", { className: "divide-y divide-zinc-50" },
+                                                    registrosFiltrados.length === 0 ? h("tr", null,
+                                                        h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]", colSpan: 3 }, "Nenhum atendimento encontrado para o período selecionado.")
+                                                    ) : registrosFiltrados.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                                        h("td", { className: "p-8" },
+                                                            h("div", { className: "flex items-center gap-5" },
+                                                                h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-50 text-[#bf953f] font-black" }, "👩"),
+                                                                h("div", null,
+                                                                    h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.cliente),
+                                                                    h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" }, l.servico || "Serviço")
+                                                                )
+                                                            )
+                                                        ),
+                                                        h("td", { className: "p-8 text-center font-bold text-xs text-zinc-600" }, l.data_atendimento?.split('-').reverse().join('/') || ""),
+                                                        h("td", { className: "p-8 text-right font-black text-lg tracking-tighter text-zinc-900" }, `R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                                    ))
+                                                )
+                                            )
+                                        )
+                                    )
+                                );
+                            })()
+                        )
+                    ) : currentTab === "financeiro" ? h("div", { className: "space-y-10" },
+                        h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-8" },
+                            h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
+                                h("div", { className: "flex items-center gap-3 mb-3 text-emerald-500 font-bold text-xs uppercase" },
+                                    `Receitas (${MESES[filtroMesFin-1]})`
+                                ),
+                                h("h2", { className: "text-4xl font-black italic tracking-tighter text-emerald-600" }, `R$ ${totalEntradasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
                             ),
-                            h("div", { className: "flex justify-center items-center gap-10 pt-6" },
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Mês Anterior"),
-                                h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Próximo Mês")
+                            h("div", { className: "p-10 rounded-[45px] border border-zinc-100 bg-white shadow-xl shadow-zinc-200/40" },
+                                h("div", { className: "flex items-center gap-3 mb-3 text-rose-500 font-bold text-xs uppercase" },
+                                    `Despesas (${MESES[filtroMesFin-1]})`
+                                ),
+                                h("h2", { className: "text-4xl font-black italic tracking-tighter text-rose-600" }, `R$ ${totalSaidasFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                            ),
+                            h("div", { className: "p-10 rounded-[45px] border border-[#bf953f]/40 ring-1 ring-[#bf953f]/10 bg-white shadow-xl shadow-zinc-200/40" },
+                                h("div", { className: "flex items-center gap-3 mb-3 text-[#bf953f] font-bold text-xs uppercase" },
+                                    "Lucro Líquido"
+                                ),
+                                h("h2", { className: "text-4xl font-black italic tracking-tighter text-[#bf953f]" }, `R$ ${lucroRealFin.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                            )
+                        ),
+                        h("div", { className: "bg-white rounded-[50px] shadow-2xl shadow-zinc-200/50 border border-zinc-100 overflow-hidden" },
+                            h("div", { className: "p-10 border-b border-zinc-50 flex justify-between items-center bg-zinc-50/30" },
+                                h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, `Extrato de ${MESES[filtroMesFin-1]} / ${filtroAnoFin}`),
+                                h("span", { className: "text-[10px] font-bold text-zinc-300" }, `${lancamentosFiltradosFin.length} Registros`)
+                            ),
+                            h("div", { className: "overflow-x-auto" },
+                                h("table", { className: "w-full text-left" },
+                                    h("tbody", { className: "divide-y divide-zinc-50" },
+                                        lancamentosFiltradosFin.length === 0 ? h("tr", null,
+                                            h("td", { className: "p-20 text-center text-zinc-300 font-bold uppercase text-[10px]" }, "Sem movimentações neste período")
+                                        ) : lancamentosFiltradosFin.map(l => h("tr", { key: l.id, className: "group hover:bg-zinc-50/80 transition-all" },
+                                            h("td", { className: "p-8" },
+                                                h("div", { className: "flex items-center gap-5" },
+                                                    h("div", { className: `w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg ${l.tipo === 'entrada' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'}` },
+                                                        l.tipo === 'entrada' ? '+' : '-'
+                                                    ),
+                                                    h("div", null,
+                                                        h("p", { className: "font-black text-sm uppercase italic text-zinc-800" }, l.item || l.servico),
+                                                        h("p", { className: "text-[10px] text-zinc-400 font-bold uppercase tracking-tighter mt-1" },
+                                                            l.categoria, h("span", { className: "mx-2 opacity-20" }, "|"), l.data ? l.data.split('-').reverse().join('/') : ''
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            h("td", { className: "p-8 text-right font-black text-lg tracking-tighter" },
+                                                h("span", { className: l.tipo === 'entrada' ? 'text-emerald-600' : 'text-rose-600' },
+                                                    `${l.tipo === 'saida' ? '- ' : '+ '}R$ ${Number(l.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                                )
+                                            ),
+                                            h("td", { className: "p-8 text-right" },
+                                                h("button", {
+                                                    onClick: async () => {
+                                                        if(confirm("Excluir?")) {
+                                                            await _supabase.from("financeiro").delete().eq("id", l.id);
+                                                            fetchFinanceiroData();
+                                                        }
+                                                    },
+                                                    className: "text-zinc-200 hover:text-rose-500 transition-all font-bold text-xs cursor-pointer"
+                                                }, "Excluir")
+                                            )
+                                        ))
+                                    )
+                                )
                             )
                         )
-                    ]
+                    ) : h("div", { className: "space-y-8" },
+                        h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
+                            h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
+                                h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
+                                h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
+                            ),
+                            h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
+                                h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
+                                    h("div", { className: "flex items-center gap-3" },
+                                        h("input", { type: "time", value: config.inicio, onChange: e => setConfig({...config, inicio: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" }),
+                                        h("span", { className: "font-bold text-zinc-400" }, "até"),
+                                        h("input", { type: "time", value: config.fim, onChange: e => setConfig({...config, fim: e.target.value}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-32 outline-none cursor-pointer" })
+                                    )
+                                ),
+                                h("div", { className: "bg-zinc-50 p-5 rounded-[2rem] border border-zinc-200 flex items-center gap-4" },
+                                    h("input", { type: "number", value: config.intervalo, onChange: e => setConfig({...config, intervalo: parseInt(e.target.value) || 0}), className: "bg-white border border-zinc-200 p-2 rounded-xl font-bold w-20 text-center outline-none" })
+                                ),
+                                h("button", {
+                                    disabled: loading,
+                                    onClick: async () => {
+                                        setLoading(true);
+                                        const { error } = await _supabase.from('agenda_config').upsert({ 
+                                            id: 1, 
+                                            hora_inicio: config.inicio, 
+                                            hora_fim: config.fim, 
+                                            intervalo_minutos: config.intervalo 
+                                        }, { onConflict: 'id' });
+                                        setLoading(false);
+                                        if (!error) alert("Configurações Salvas!");
+                                        else alert("Erro ao salvar no banco.");
+                                    },
+                                    className: "bg-[#bf953f] text-black font-black px-6 py-5 rounded-2xl shadow-xl hover:scale-105 transition-all disabled:opacity-50 uppercase text-xs tracking-widest cursor-pointer"
+                                }, "Salvar Configurações")
+                            )
+                        ),
+                        h("div", { className: "flex flex-col lg:flex-row gap-8" },
+                            renderMonth(viewDate),
+                            renderMonth(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
+                        ),
+                        h("div", { className: "flex justify-center items-center gap-10 pt-6" },
+                            h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Mês Anterior"),
+                            h("button", { onClick: () => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)), className: "px-6 py-4 bg-white border border-zinc-200 rounded-2xl shadow-md hover:bg-zinc-50 transition-colors font-black text-sm cursor-pointer" }, "Próximo Mês")
+                        )
+                    )
                 ),
 
                 isModalOpen && h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" },
@@ -997,20 +1006,80 @@
 
                         h("div", { className: "space-y-3 pt-4 border-t border-zinc-100" },
                             h("div", { className: "flex flex-col" },
-                                h("span", { className: "text-[10px] font-black text-zinc-900 uppercase tracking-widest" }, "Inativar Horários Específicos"),
-                                h("span", { className: "text-[9px] text-zinc-400 font-medium" }, "Clique num horário para bloqueá-lo")
+                                h("span", { className: "text-[10px] font-black text-zinc-900 uppercase tracking-widest" }, "Gerenciar Horários Específicos"),
+                                h("span", { className: "text-[9px] text-zinc-400 font-medium" }, "Inative ou edite os horários individuais do dia")
                             ),
                             h("div", { className: "grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 custom-scroll bg-zinc-50 rounded-2xl border border-zinc-100" },
                                 gerarSlotsDoDia().map(slot => {
                                     const inativados = horariosInativadosMap[selectedDateISO] || [];
                                     const isInativado = inativados.includes(slot);
-                                    return h("button", {
+                                    const estaEditando = horarioEditando === slot;
+
+                                    if (estaEditando) {
+                                        return h("div", { key: slot, className: "p-2 bg-white border border-[#bf953f] rounded-xl flex flex-col gap-1 items-center justify-center col-span-3 shadow-md" },
+                                            h("span", { className: "text-[9px] font-bold text-zinc-400 uppercase" }, `Editar ${slot}`),
+                                            h("div", { className: "flex gap-2 w-full" },
+                                                h("input", { 
+                                                    type: "time", 
+                                                    value: novoValorHorario, 
+                                                    onChange: (e) => setNovoValorHorario(e.target.value),
+                                                    className: "bg-zinc-50 border border-zinc-200 p-1.5 rounded-lg text-xs font-bold outline-none flex-1 text-center" 
+                                                }),
+                                                h("button", {
+                                                    onClick: async () => {
+                                                        if (!novoValorHorario) return alert("Insira um horário válido.");
+                                                        
+                                                        await _supabase.from('horarios_bloqueados_pontuais')
+                                                            .insert([{ data: selectedDateISO, horario: slot }]);
+                                                        
+                                                        setHorariosInativadosMap(prev => ({
+                                                            ...prev,
+                                                            [selectedDateISO]: [...(prev[selectedDateISO] || []), slot]
+                                                        }));
+
+                                                        setHorariosExtrasMap(prev => ({
+                                                            ...prev,
+                                                            [selectedDateISO]: [...(prev[selectedDateISO] || []), novoValorHorario]
+                                                        }));
+
+                                                        setHorarioEditando(null);
+                                                        setNovoValorHorario("");
+                                                        alert("Horário editado com sucesso!");
+                                                    },
+                                                    className: "bg-[#bf953f] text-black px-3 py-1 rounded-lg text-xs font-black uppercase cursor-pointer"
+                                                }, "Salvar"),
+                                                h("button", {
+                                                    onClick: () => setHorarioEditando(null),
+                                                    className: "bg-zinc-200 text-zinc-700 px-2 py-1 rounded-lg text-xs font-bold cursor-pointer"
+                                                }, "✕")
+                                            )
+                                        );
+                                    }
+
+                                    return h("div", {
                                         key: slot,
-                                        onClick: () => toggleHorarioPontual(slot),
-                                        className: `p-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border cursor-pointer ${
-                                            isInativado ? 'bg-red-600 text-white border-red-700 line-through shadow-md scale-95' : 'bg-white text-zinc-800 border-zinc-200 hover:border-[#bf953f]'
+                                        className: `p-2.5 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border relative group ${
+                                            isInativado ? 'bg-red-600 text-white border-red-700 line-through shadow-sm' : 'bg-white text-zinc-800 border-zinc-200 hover:border-[#bf953f]'
                                         }`
-                                    }, slot, h("span", { className: "text-[8px] uppercase tracking-tighter mt-0.5 font-bold" }, isInativado ? 'Bloqueado' : 'Disponível'))
+                                    },
+                                        h("span", { 
+                                            onClick: () => toggleHorarioPontual(slot),
+                                            className: "cursor-pointer w-full text-center"
+                                        }, slot),
+                                        h("div", { className: "flex gap-2 mt-1" },
+                                            h("button", {
+                                                onClick: () => toggleHorarioPontual(slot),
+                                                className: "text-[8px] uppercase tracking-tighter font-bold cursor-pointer underline"
+                                            }, isInativado ? 'Ativar' : 'Inativar'),
+                                            h("button", {
+                                                onClick: () => {
+                                                    setHorarioEditando(slot);
+                                                    setNovoValorHorario(slot);
+                                                },
+                                                className: "text-[8px] uppercase tracking-tighter font-bold cursor-pointer text-[#bf953f]"
+                                            }, "Editar")
+                                        )
+                                    );
                                 })
                             )
                         ),
@@ -1033,3 +1102,4 @@
     </script>
 </body>
 </html>
+
