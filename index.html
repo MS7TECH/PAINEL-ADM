@@ -168,6 +168,16 @@
                         });
                         setHorariosInativadosMap(hMap);
                     }
+
+                    const { data: hExtrasData } = await _supabase.from('horarios_extras').select('*');
+                    if (hExtrasData) {
+                        const eMap = {};
+                        hExtrasData.forEach(item => {
+                            if (!eMap[item.data]) eMap[item.data] = [];
+                            eMap[item.data].push(item.horario.slice(0, 5));
+                        });
+                        setHorariosExtrasMap(eMap);
+                    }
                 } catch (err) { 
                     console.error("Erro geral da agenda:", err);
                 } finally {
@@ -1032,6 +1042,14 @@
                                                         await _supabase.from('horarios_bloqueados_pontuais')
                                                             .insert([{ data: selectedDateISO, horario: slot }]);
                                                         
+                                                        const { error } = await _supabase.from('horarios_extras')
+                                                            .insert([{ data: selectedDateISO, horario: novoValorHorario }]);
+
+                                                        if (error) {
+                                                            console.error(error);
+                                                            return alert("Erro ao salvar horário no banco de dados.");
+                                                        }
+
                                                         setHorariosInativadosMap(prev => ({
                                                             ...prev,
                                                             [selectedDateISO]: [...(prev[selectedDateISO] || []), slot]
@@ -1044,7 +1062,7 @@
 
                                                         setHorarioEditando(null);
                                                         setNovoValorHorario("");
-                                                        alert("Horário editado com sucesso!");
+                                                        alert("Horário editado e salvo com sucesso!");
                                                     },
                                                     className: "bg-[#bf953f] text-black px-3 py-1 rounded-lg text-xs font-black uppercase cursor-pointer"
                                                 }, "Salvar"),
@@ -1102,4 +1120,3 @@
     </script>
 </body>
 </html>
-
