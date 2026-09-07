@@ -116,6 +116,220 @@
             );
         };
 
+        // Módulo isolado de Gerenciamento de Serviços (Página de Serviços)
+        const ServicosPage = ({ servicosDb, onSave, onDelete, onOpenModal }) => {
+            return React.createElement("div", { className: "space-y-6" },
+                h("div", { className: "flex justify-between items-center mb-6" },
+                    h("div", null,
+                        h("h2", { className: "text-2xl font-black italic uppercase text-black" }, "Gestão de ", h("span", { className: "text-[#bf953f]" }, "Serviços")),
+                        h("p", { className: "text-xs text-gray-400 font-bold uppercase mt-1" }, "Catálogo de procedimentos e precificação")
+                    ),
+                    h("button", { 
+                        onClick: () => onOpenModal(), 
+                        className: "flex items-center gap-2 px-6 py-3 gold-bg text-black rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 transition-all cursor-pointer" 
+                    }, "+ Adicionar Serviço")
+                ),
+                (!servicosDb || servicosDb.length === 0) ? 
+                    h("div", { className: "text-center py-20 text-gray-400 font-bold uppercase text-xs bg-white rounded-[2.5rem] border border-gray-100 shadow-sm" }, 
+                        "Nenhum serviço cadastrado."
+                    ) :
+                    h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
+                        servicosDb.map(s => {
+                            const precoFormatado = Number(s.preco || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            return h("div", { 
+                                key: s.id, 
+                                className: "group bg-white p-8 rounded-[2.5rem] border border-gray-200 shadow-xl border-t-4 relative transition-all hover:-translate-y-1",
+                                style: { borderTopColor: "#bf953f" }
+                            },
+                                h("div", { className: "absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all" },
+                                    h("button", { onClick: () => onOpenModal(s), className: "p-2 bg-gray-50 rounded-full text-gray-400 hover:text-[#bf953f] border cursor-pointer", title: "Editar" }, "✏️"),
+                                    h("button", { onClick: () => onDelete(s.id), className: "p-2 bg-gray-50 rounded-full text-gray-400 hover:text-red-500 border cursor-pointer", title: "Excluir" }, "🗑️")
+                                ),
+                                h("div", { className: "w-12 h-12 rounded-2xl flex items-center justify-center mb-6", style: { background: "rgba(191, 149, 63, 0.15)", color: "#bf953f" } }, "✨"),
+                                h("h3", { className: "text-sm font-black italic uppercase text-gray-900 mb-4" }, s.nome),
+                                h("div", { className: "space-y-3" },
+                                    h("div", { className: "p-3 rounded-xl flex justify-between items-center border bg-orange-50/30 border-orange-100" },
+                                        h("span", { className: "text-[10px] font-black uppercase text-gray-400" }, "Valor"),
+                                        h("span", { className: "font-black italic text-gray-900" }, `R$ ${precoFormatado}`)
+                                    ),
+                                    h("div", { className: "flex items-center gap-2 px-2 text-gray-400 text-[10px] font-black uppercase" }, `⏱️ ${s.duracao || 0} min`)
+                                )
+                            );
+                        })
+                    )
+            );
+        };
+
+        // Página Business Insights (Central de Inteligência)
+        const BusinessInsightsPage = ({ financas, loading }) => {
+            const stats = React.useMemo(() => {
+                const lista = financas || [];
+                const totalBruto = lista.filter(l => l.tipo === 'entrada').reduce((acc, l) => acc + Number(l.valor || 0), 0);
+                const totalSaidas = lista.filter(l => l.tipo === 'saida').reduce((acc, l) => acc + Number(l.valor || 0), 0);
+                const lucroLiquido = totalBruto - totalSaidas;
+
+                const servicosMap = {};
+                lista.filter(l => l.tipo === 'entrada').forEach(l => {
+                    const nome = (l.servico || l.item || "OUTROS").toUpperCase();
+                    servicosMap[nome] = (servicosMap[nome] || 0) + 1;
+                });
+                const topServicos = Object.entries(servicosMap)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 5);
+
+                const clientesUnicos = new Set(
+                    lista.filter(l => l.tipo === 'entrada' && l.cliente)
+                        .map(l => (l.cliente || "").trim().toUpperCase())
+                ).size;
+
+                const totalLancamentos = lista.filter(l => l.tipo === 'entrada').length;
+
+                return { totalBruto, totalSaidas, lucroLiquido, topServicos, clientesUnicos, totalLancamentos };
+            }, [financas]);
+
+            if (loading) {
+                return h("div", { className: "h-64 w-full flex items-center justify-center" },
+                    h("p", { className: "text-xs font-black uppercase tracking-widest text-[#bf953f]" }, "Carregando insights...")
+                );
+            }
+
+            return h("div", { className: "w-full space-y-10" },
+                // HEADER
+                h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-center gap-4" },
+                    h("div", { className: "space-y-1" },
+                        h("div", { className: "flex items-center gap-2 text-[#bf953f]" },
+                            h("span", { className: "text-[10px] font-black uppercase tracking-[0.5em]" }, "Central de Inteligência")
+                        ),
+                        h("h1", { className: "text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-black" },
+                            "Business ", h("span", { className: "text-[#bf953f]" }, "Insights")
+                        )
+                    ),
+                    h("div", { className: "text-left md:text-right" },
+                        h("p", { className: "text-[10px] font-black text-zinc-400 uppercase tracking-widest" }, "Atualizado agora"),
+                        h("div", { className: "flex items-center gap-2 justify-start md:justify-end text-emerald-500 font-bold italic text-sm" }, "● Em tempo real")
+                    )
+                ),
+
+                // CARDS PRINCIPAIS
+                h("div", { className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6" },
+                    h("div", { className: "bg-white p-6 md:p-8 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/30" },
+                        h("div", { className: "flex items-center gap-3 mb-4" },
+                            h("div", { className: "p-2 rounded-xl bg-amber-50 text-[#bf953f] font-black text-lg" }, "💰"),
+                            h("span", { className: "text-[9px] font-black text-zinc-400 uppercase tracking-widest" }, "Receita Bruta")
+                        ),
+                        h("h2", { className: "text-2xl md:text-3xl font-black italic tracking-tighter text-black" },
+                            `R$ ${stats.totalBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        )
+                    ),
+                    h("div", { className: "bg-white p-6 md:p-8 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/30" },
+                        h("div", { className: "flex items-center gap-3 mb-4" },
+                            h("div", { className: "p-2 rounded-xl bg-emerald-50 text-emerald-600 font-black text-lg" }, "📈"),
+                            h("span", { className: "text-[9px] font-black text-zinc-400 uppercase tracking-widest" }, "Lucro Líquido")
+                        ),
+                        h("h2", { className: "text-2xl md:text-3xl font-black italic tracking-tighter text-emerald-600" },
+                            `R$ ${stats.lucroLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        )
+                    ),
+                    h("div", { className: "bg-white p-6 md:p-8 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/30" },
+                        h("div", { className: "flex items-center gap-3 mb-4" },
+                            h("div", { className: "p-2 rounded-xl bg-zinc-100 text-black font-black text-lg" }, "👥"),
+                            h("span", { className: "text-[9px] font-black text-zinc-400 uppercase tracking-widest" }, "Clientes Atendidos")
+                        ),
+                        h("h2", { className: "text-2xl md:text-3xl font-black italic tracking-tighter text-black" }, stats.clientesUnicos)
+                    ),
+                    h("div", { className: "bg-white p-6 md:p-8 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/30" },
+                        h("div", { className: "flex items-center gap-3 mb-4" },
+                            h("div", { className: "p-2 rounded-xl bg-indigo-50 text-indigo-600 font-black text-lg" }, "✨"),
+                            h("span", { className: "text-[9px] font-black text-zinc-400 uppercase tracking-widest" }, "Atendimentos")
+                        ),
+                        h("h2", { className: "text-2xl md:text-3xl font-black italic tracking-tighter text-black" }, stats.totalLancamentos)
+                    )
+                ),
+
+                h("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-10" },
+                    // TOP SERVIÇOS
+                    h("div", { className: "md:col-span-2 bg-white rounded-[45px] p-6 md:p-10 shadow-2xl shadow-zinc-200/50 border border-zinc-100" },
+                        h("div", { className: "flex justify-between items-center mb-8" },
+                            h("h3", { className: "text-sm font-black uppercase tracking-[0.3em] text-black" }, "Serviços ", h("span", { className: "italic text-[#bf953f]" }, "High-End")),
+                            h("span", { className: "text-zinc-300 text-xl" }, "💅")
+                        ),
+                        h("div", { className: "space-y-4" },
+                            stats.topServicos.length === 0
+                                ? h("p", { className: "text-xs text-zinc-400 uppercase tracking-widest text-center py-6" }, "Nenhum serviço registrado")
+                                : stats.topServicos.map(([nome, qtd], idx) =>
+                                    h("div", {
+                                        key: idx,
+                                        className: "flex items-center justify-between p-5 bg-zinc-50 rounded-3xl group hover:bg-black transition-all"
+                                    },
+                                        h("div", { className: "flex items-center gap-4" },
+                                            h("span", { className: "text-2xl font-black italic text-zinc-200 group-hover:text-[#bf953f]" }, `0${idx + 1}`),
+                                            h("p", { className: "font-black uppercase text-xs tracking-widest text-zinc-800 group-hover:text-white" }, nome)
+                                        ),
+                                        h("div", { className: "text-right" },
+                                            h("p", { className: "text-[10px] font-black text-zinc-400 group-hover:text-zinc-500 uppercase" }, "Volume"),
+                                            h("p", { className: "font-black text-black group-hover:text-[#bf953f]" }, `${qtd}x`)
+                                        )
+                                    )
+                                )
+                        )
+                    ),
+
+                    // PERFORMANCE BOX
+                    h("div", { className: "bg-black rounded-[45px] p-6 md:p-10 text-white relative overflow-hidden shadow-2xl flex flex-col justify-between min-h-[280px]" },
+                        h("div", { className: "relative z-10 space-y-6" },
+                            h("div", null,
+                                h("h3", { className: "text-[10px] font-black uppercase tracking-[0.4em] text-[#bf953f] mb-6" }, "Resumo Financeiro"),
+                                h("p", { className: "text-3xl md:text-4xl font-light leading-tight" }, "Seu negócio está ", h("span", { className: "font-black italic" }, "performando."))
+                            ),
+                            h("div", { className: "space-y-4" },
+                                h("div", { className: "flex justify-between items-end" },
+                                    h("span", { className: "text-[10px] font-black uppercase tracking-widest text-zinc-500" }, "Despesas"),
+                                    h("span", { className: "text-lg font-black italic text-rose-400" }, `R$ ${stats.totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                ),
+                                h("div", { className: "flex justify-between items-end" },
+                                    h("span", { className: "text-[10px] font-black uppercase tracking-widest text-zinc-500" }, "Margem"),
+                                    h("span", { className: "text-2xl font-black italic text-[#bf953f]" },
+                                        stats.totalBruto > 0
+                                            ? `${Math.round((stats.lucroLiquido / stats.totalBruto) * 100)}%`
+                                            : "0%"
+                                    )
+                                ),
+                                h("div", { className: "w-full h-2 bg-zinc-800 rounded-full overflow-hidden" },
+                                    h("div", {
+                                        className: "h-full bg-[#bf953f] transition-all duration-1000",
+                                        style: {
+                                            width: stats.totalBruto > 0
+                                                ? `${Math.min(100, Math.round((stats.lucroLiquido / stats.totalBruto) * 100))}%`
+                                                : "0%"
+                                        }
+                                    })
+                                ),
+                                h("p", { className: "text-[9px] text-zinc-500 uppercase font-bold tracking-tighter" }, "Baseado em todos os lançamentos financeiros")
+                            )
+                        )
+                    )
+                ),
+
+                // BANNER DE META
+                h("div", { className: "bg-[#bf953f] p-1 rounded-[30px]" },
+                    h("div", { className: "bg-white rounded-[28px] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6" },
+                        h("div", { className: "flex items-center gap-6" },
+                            h("div", { className: "w-16 h-16 bg-black rounded-2xl flex items-center justify-center text-[#bf953f] shadow-xl shrink-0 text-2xl" }, "🎯"),
+                            h("div", null,
+                                h("h4", { className: "font-black uppercase text-sm tracking-tight italic" }, "Próxima Meta de Faturamento"),
+                                h("p", { className: "text-xs text-zinc-400 font-bold uppercase tracking-widest" },
+                                    `R$ ${(stats.totalBruto * 1.2).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} (Alcançar +20%)`
+                                )
+                            )
+                        ),
+                        h("div", { className: "text-[10px] font-black uppercase tracking-widest text-zinc-400" },
+                            `${stats.totalLancamentos} lançamentos • ${stats.clientesUnicos} clientes`
+                        )
+                    )
+                )
+            );
+        };
+
         function Dashboard() {
             const [isAuth, setIsAuth] = useState(false);
             const [currentTab, setCurrentTab] = useState("agendamentos");
@@ -164,6 +378,20 @@
             const [filtroMesFin, setFiltroMesFin] = useState(hojeObj.getMonth() + 1);
             const [filtroAnoFin, setFiltroAnoFin] = useState(hojeObj.getFullYear());
             const [formDataFinanceiro, setFormDataFinanceiro] = useState({ item: "", categoria: "", valor: "", tipo: "entrada" });
+
+            // Estados da nova página de Fluxo (Financeiro_2)
+            const [transacoesFinanceiro2, setTransacoesFinanceiro2] = useState([]);
+            const [agendamentosPendentes, setAgendamentosPendentes] = useState([]);
+            const [selectedModalidade, setSelectedModalidade] = useState({});
+            const [lancarTudoLoading, setLancarTudoLoading] = useState(false);
+            const [filtroMesFin2, setFiltroMesFin2] = useState(hojeObj.getMonth() + 1);
+            const [filtroDiaFin2, setFiltroDiaFin2] = useState(hojeObj.getDate().toString());
+            const [searchTermFin2, setSearchTermFin2] = useState("");
+
+            // Estados da página de Serviços
+            const [isServicoModalOpen, setIsServicoModalOpen] = useState(false);
+            const [servicoEditando, setServicoEditando] = useState(null);
+            const [formServico, setFormServico] = useState({ nome: "", preco: "", duracao: "" });
 
             const aplicarMascaraAniversario = (v) => {
                 if (!v) return "";
@@ -243,6 +471,7 @@
                     fetchFinanceiroData();
                     loadManicureData();
                     carregarRelatorioManicure();
+                    loadFinanceiro2Data();
                 }
             }, [isAuth, filterDate, fetchAgendaConfigData]);
 
@@ -250,6 +479,63 @@
                 const { data } = await _supabase.from("servicos").select("*").order("nome");
                 if (data) setServicosDb(data);
             }
+
+            const openServicoModal = (servico = null) => {
+                if (servico) {
+                    setServicoEditando(servico);
+                    setFormServico({
+                        nome: servico.nome || "",
+                        preco: String(servico.preco ?? ""),
+                        duracao: String(servico.duracao ?? "")
+                    });
+                } else {
+                    setServicoEditando(null);
+                    setFormServico({ nome: "", preco: "", duracao: "" });
+                }
+                setIsServicoModalOpen(true);
+            };
+
+            const handleSaveServico = async (e) => {
+                e.preventDefault();
+                if (!formServico.nome.trim()) {
+                    alert("Informe o nome do serviço!");
+                    return;
+                }
+                const payload = {
+                    nome: formServico.nome.trim().toUpperCase(),
+                    preco: parseFloat(String(formServico.preco).replace(",", ".")) || 0,
+                    duracao: parseInt(formServico.duracao, 10) || 0
+                };
+
+                let error;
+                if (servicoEditando) {
+                    ({ error } = await _supabase.from("servicos").update(payload).eq("id", servicoEditando.id));
+                } else {
+                    ({ error } = await _supabase.from("servicos").insert([payload]));
+                }
+
+                if (!error) {
+                    setIsServicoModalOpen(false);
+                    setServicoEditando(null);
+                    setFormServico({ nome: "", preco: "", duracao: "" });
+                    fetchServicos();
+                    loadManicureData();
+                } else {
+                    console.error(error);
+                    alert("Erro ao salvar serviço: " + (error.message || "tente novamente"));
+                }
+            };
+
+            const handleDeleteServico = async (id) => {
+                if (!confirm("Deseja realmente excluir este serviço?")) return;
+                const { error } = await _supabase.from("servicos").delete().eq("id", id);
+                if (!error) {
+                    fetchServicos();
+                    loadManicureData();
+                } else {
+                    alert("Erro ao excluir serviço.");
+                }
+            };
 
             async function fetchData() {
                 setLoading(true);
@@ -287,6 +573,96 @@
                 if (!error) setLancamentosFinanceiros(data || []);
                 setLoadingFinanceiro(false);
             }
+
+            async function loadFinanceiro2Data() {
+                const { data: finData } = await _supabase.from("financeiro").select("*").order("id", { ascending: false });
+                const { data: agenData } = await _supabase.from("agendamentos").select("*").order("data_atendimento", { ascending: false });
+
+                if (finData) setTransacoesFinanceiro2(finData);
+
+                if (agenData && finData) {
+                    const hojeIso = new Date().toLocaleDateString('en-CA');
+                    const pendentes = agenData.filter(a => {
+                        if (a.data_atendimento > hojeIso) return false;
+                        return !finData.some(f => 
+                            f.cliente?.trim().toUpperCase() === a.cliente_nome?.trim().toUpperCase() && 
+                            f.servico?.trim().toUpperCase() === a.servico?.trim().toUpperCase() &&
+                            f.data === a.data_atendimento
+                        );
+                    });
+                    setAgendamentosPendentes(pendentes);
+                } else {
+                    setAgendamentosPendentes([]);
+                }
+            }
+
+            const confirmarPagamentoFin2 = async (agendamento) => {
+                const mod = selectedModalidade[agendamento.id] || "PIX";
+                const dataISO = agendamento.data_atendimento; 
+                const partes = dataISO.split('-');
+                const dataBR = `${partes[2]}/${partes[1]}`;
+
+                const { error } = await _supabase.from("financeiro").insert([{
+                    cliente: (agendamento.cliente_nome || "CLIENTE").toUpperCase(),
+                    servico: (agendamento.servico || "SERVIÇO").toUpperCase(),
+                    item: (agendamento.servico || "SERVIÇO").toUpperCase(),
+                    categoria: "ATENDIMENTO",
+                    data: dataISO, 
+                    data_atendimento: dataBR, 
+                    valor: Number(agendamento.valor || 0),
+                    tipo: "entrada",
+                    status: "pago",
+                    modalidade: mod
+                }]);
+
+                if (!error) {
+                    loadFinanceiro2Data();
+                    fetchFinanceiroData();
+                } else {
+                    console.error("Erro Supabase:", error);
+                    alert("Erro ao lançar: " + error.message);
+                }
+            };
+
+            const confirmarTodosPagamentosFin2 = async () => {
+                if (agendamentosPendentes.length === 0) return;
+                if (!confirm(`Deseja lançar todos os ${agendamentosPendentes.length} agendamentos pendentes de uma vez?`)) return;
+
+                setLancarTudoLoading(true);
+                try {
+                    const novosRegistros = agendamentosPendentes.map(agendamento => {
+                        const mod = selectedModalidade[agendamento.id] || "PIX";
+                        const dataISO = agendamento.data_atendimento;
+                        const partes = dataISO.split('-');
+                        const dataBR = `${partes[2]}/${partes[1]}`;
+
+                        return {
+                            cliente: (agendamento.cliente_nome || "CLIENTE").toUpperCase(),
+                            servico: (agendamento.servico || "SERVIÇO").toUpperCase(),
+                            item: (agendamento.servico || "SERVIÇO").toUpperCase(),
+                            categoria: "ATENDIMENTO",
+                            data: dataISO,
+                            data_atendimento: dataBR,
+                            valor: Number(agendamento.valor || 0),
+                            tipo: "entrada",
+                            status: "pago",
+                            modalidade: mod
+                        };
+                    });
+
+                    const { error } = await _supabase.from("financeiro").insert(novosRegistros);
+                    if (error) {
+                        alert("Erro ao lançar todos: " + error.message);
+                    } else {
+                        loadFinanceiro2Data();
+                        fetchFinanceiroData();
+                    }
+                } catch (err) {
+                    alert("Erro inesperado ao processar lançamentos.");
+                } finally {
+                    setLancarTudoLoading(false);
+                }
+            };
 
             async function carregarRelatorioManicure() {
                 if (!_supabase) return;
@@ -346,6 +722,7 @@
                     setServicosSelecionados([]); 
                     setNovoAgendamento({ ...novoAgendamento, nome: "", telefone: "", aniversario: "" }); 
                     fetchData();
+                    loadFinanceiro2Data();
                 }
             };
 
@@ -397,6 +774,7 @@
                     setIsFinanceiroModalOpen(false);
                     setFormDataFinanceiro({ item: "", categoria: "", valor: "", tipo: "entrada" });
                     fetchFinanceiroData();
+                    loadFinanceiro2Data();
                 } else {
                     alert("Erro ao salvar lançamento financeiro.");
                 }
@@ -602,6 +980,18 @@
                                     onClick: () => setCurrentTab("financeiro"), 
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "financeiro" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
                                 }, "Fluxo Estratégico"),
+                                h("button", { 
+                                    onClick: () => setCurrentTab("financeiro_2"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "financeiro_2" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Fluxo Avançado"),
+                                h("button", { 
+                                    onClick: () => setCurrentTab("servicos"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "servicos" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Serviços"),
+                                h("button", { 
+                                    onClick: () => setCurrentTab("insights"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "insights" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Insights"),
                                 h("button", { 
                                     onClick: () => setCurrentTab("agenda_config"), 
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agenda_config" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
@@ -904,6 +1294,7 @@
                                                         if(confirm("Excluir?")) {
                                                             await _supabase.from("financeiro").delete().eq("id", l.id);
                                                             fetchFinanceiroData();
+                                                            loadFinanceiro2Data();
                                                         }
                                                     },
                                                     className: "text-zinc-200 hover:text-rose-500 transition-all font-bold text-xs cursor-pointer"
@@ -914,7 +1305,155 @@
                                 )
                             )
                         )
-                    ) : h("div", { className: "space-y-8" },
+                    ) : currentTab === "financeiro_2" ? h("div", { className: "w-full min-h-screen space-y-10", style: { background: "#fdfaf5" } },
+                        h("header", { className: "flex flex-col md:flex-row justify-between items-start md:items-end gap-6" },
+                            h("div", null,
+                                h("div", { className: "flex items-center gap-2 mb-2 text-[#bf953f]" },
+                                    h("span", { className: "text-[10px] font-black uppercase tracking-[0.4em]" }, "Business Control")
+                                ),
+                                h("h1", { className: "text-5xl font-light tracking-tighter text-zinc-900" },
+                                    "Fluxo ", h("span", { className: "font-black", style: { color: "#bf953f" } }, filtroMesFin2 === "TODOS" ? "Anual" : "Mensal")
+                                )
+                            ),
+                            h("div", { className: "bg-white p-8 rounded-[40px] border border-zinc-100 shadow-xl shadow-amber-900/5 min-w-[320px]" },
+                                h("p", { className: "text-[9px] font-black uppercase mb-1 tracking-widest text-zinc-400" }, "Faturamento do Período"),
+                                h("h2", { className: "text-4xl font-black", style: { color: "#bf953f" } },
+                                    `R$ ${transacoesFinanceiro2.filter(t => {
+                                        const bateBusca = (t.cliente || "").toUpperCase().includes(searchTermFin2.toUpperCase());
+                                        let diaReg = "", mesReg = "";
+                                        if (t.data_atendimento?.includes('/')) {
+                                            [diaReg, mesReg] = t.data_atendimento.split('/');
+                                        } else if (t.data) {
+                                            const partes = t.data.split('-');
+                                            mesReg = partes[1];
+                                            diaReg = partes[2];
+                                        }
+                                        const bateMes = filtroMesFin2 === "TODOS" || Number(mesReg) === Number(filtroMesFin2);
+                                        const bateDia = filtroDiaFin2 === "" || Number(diaReg) === Number(filtroDiaFin2);
+                                        return bateBusca && bateMes && bateDia;
+                                    }).reduce((acc, curr) => acc + Number(curr.valor || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                )
+                            )
+                        ),
+                        // PENDÊNCIAS
+                        h("section", { className: "space-y-6" },
+                            h("div", { className: "flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ml-2 mr-2" },
+                                h("h3", { className: "text-[11px] font-black uppercase tracking-widest flex items-center gap-2 text-zinc-400" },
+                                    `Confirmar Recebimento ${agendamentosPendentes.length > 0 ? `(${agendamentosPendentes.length} pendentes)` : ''}`
+                                ),
+                                agendamentosPendentes.length > 0 && h("button", {
+                                    onClick: confirmarTodosPagamentosFin2,
+                                    disabled: lancarTudoLoading,
+                                    className: "px-5 py-2.5 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-md shadow-amber-200 hover:brightness-110 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer",
+                                    style: { background: "#bf953f" }
+                                }, lancarTudoLoading ? "Carregando..." : "Lançar Tudo")
+                            ),
+                            h("div", { className: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" },
+                                agendamentosPendentes.map(agen => h("div", {
+                                    key: agen.id,
+                                    className: "bg-white p-6 rounded-[35px] border border-zinc-100 shadow-sm space-y-5"
+                                },
+                                    h("div", { className: "flex justify-between items-start" },
+                                        h("div", null,
+                                            h("p", { className: "font-black text-xs uppercase text-zinc-800" }, agen.cliente_nome),
+                                            h("p", { className: "text-[10px] font-bold uppercase italic", style: { color: "#bf953f" } }, agen.servico),
+                                            h("p", { className: "text-[8px] text-zinc-400 font-black mt-1" }, `DATA: ${agen.data_atendimento.split('-').reverse().join('/')}`)
+                                        ),
+                                        h("h4", { className: "text-xl font-black text-zinc-900 italic" }, `R$ ${Number(agen.valor || 0).toFixed(2)}`)
+                                    ),
+                                    h("div", { className: "flex gap-2" },
+                                        h("div", { className: "relative flex-1" },
+                                            h("select", {
+                                                onChange: (e) => setSelectedModalidade({...selectedModalidade, [agen.id]: e.target.value}),
+                                                className: "w-full bg-zinc-50 border-none rounded-xl pl-4 pr-8 py-3 text-[10px] font-black uppercase text-zinc-500 outline-none cursor-pointer appearance-none"
+                                            },
+                                                h("option", { value: "PIX" }, "PIX"),
+                                                h("option", { value: "CARTÃO" }, "CARTÃO"),
+                                                h("option", { value: "DINHEIRO" }, "DINHEIRO")
+                                            )
+                                        ),
+                                        h("button", {
+                                            onClick: () => confirmarPagamentoFin2(agen),
+                                            className: "px-6 py-3 rounded-xl text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-200 hover:brightness-110 active:scale-95 transition-all cursor-pointer",
+                                            style: { background: "#bf953f" }
+                                        }, "Salvar")
+                                    )
+                                )),
+                                agendamentosPendentes.length === 0 && h("p", { className: "text-[10px] font-bold text-zinc-300 uppercase ml-2" }, "Tudo em dia! Nenhuma pendência.")
+                            )
+                        ),
+                        // HISTÓRICO AVANÇADO
+                        h("div", { className: "bg-white rounded-[45px] shadow-sm border border-zinc-100 overflow-hidden" },
+                            h("div", { className: "p-10 border-b border-zinc-50 flex flex-col lg:flex-row justify-between items-center gap-6" },
+                                h("h3", { className: "text-[11px] font-black uppercase tracking-[0.3em] text-zinc-400" }, "Histórico de Lançamentos"),
+                                h("div", { className: "flex items-center gap-3" },
+                                    h("div", { className: "flex items-center bg-zinc-50 rounded-full px-5 py-3 gap-3 border border-zinc-100" },
+                                        h("div", { className: "flex items-center gap-1" },
+                                            h("input", { type: "number", value: filtroDiaFin2, onChange: (e) => setFiltroDiaFin2(e.target.value), className: "w-8 bg-transparent text-[10px] font-black text-zinc-800 outline-none text-center" }),
+                                            h("span", { className: "text-zinc-300" }, "/"),
+                                            h("select", { value: filtroMesFin2, onChange: (e) => setFiltroMesFin2(e.target.value === "TODOS" ? "TODOS" : Number(e.target.value)), className: "bg-transparent text-[10px] font-black text-[#bf953f] outline-none uppercase cursor-pointer" },
+                                                h("option", { value: "TODOS" }, "TODOS"),
+                                                ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"].map((m, i) => h("option", { key: i, value: i + 1 }, m))
+                                            )
+                                        )
+                                    ),
+                                    h("div", { className: "relative" },
+                                        h("input", { placeholder: "BUSCAR...", className: "pl-6 pr-6 py-3 bg-zinc-50 text-zinc-800 rounded-full text-[10px] font-bold outline-none w-48 border border-zinc-100", value: searchTermFin2, onChange: (e) => setSearchTermFin2(e.target.value) })
+                                    )
+                                )
+                            ),
+                            h("table", { className: "w-full text-left" },
+                                h("thead", { className: "bg-zinc-50/50 text-[10px] font-black text-zinc-400 uppercase tracking-widest" },
+                                    h("tr", null,
+                                        h("th", { className: "px-10 py-6" }, "Cliente"),
+                                        h("th", { className: "px-8 py-6 text-center" }, "Método"),
+                                        h("th", { className: "px-10 py-6 text-right" }, "Valor"),
+                                        h("th", { className: "px-6 py-6" }, "")
+                                    )
+                                ),
+                                h("tbody", { className: "divide-y divide-zinc-50" },
+                                    transacoesFinanceiro2.filter(t => {
+                                        const bateBusca = (t.cliente || "").toUpperCase().includes(searchTermFin2.toUpperCase());
+                                        let diaReg = "", mesReg = "";
+                                        if (t.data_atendimento?.includes('/')) {
+                                            [diaReg, mesReg] = t.data_atendimento.split('/');
+                                        } else if (t.data) {
+                                            const partes = t.data.split('-');
+                                            mesReg = partes[1];
+                                            diaReg = partes[2];
+                                        }
+                                        const bateMes = filtroMesFin2 === "TODOS" || Number(mesReg) === Number(filtroMesFin2);
+                                        const bateDia = filtroDiaFin2 === "" || Number(diaReg) === Number(filtroDiaFin2);
+                                        return bateBusca && bateMes && bateDia;
+                                    }).map((t) => h("tr", { key: t.id, className: "hover:bg-amber-50/20 transition-colors group" },
+                                        h("td", { className: "px-10 py-6" },
+                                            h("p", { className: "font-black text-xs text-zinc-800 uppercase" }, t.cliente),
+                                            h("p", { className: "text-[9px] text-[#bf953f] font-bold uppercase tracking-widest mt-1" },
+                                                t.servico || t.item, h("span", { className: "text-zinc-300 ml-2" }, `| ${t.data_atendimento || t.data}`)
+                                            )
+                                        ),
+                                        h("td", { className: "px-8 py-6 text-center" },
+                                            h("span", { className: "inline-flex items-center gap-2 bg-zinc-100 px-4 py-1.5 rounded-full text-[9px] font-black text-zinc-500 uppercase" }, t.modalidade || "PIX")
+                                        ),
+                                        h("td", { className: "px-10 py-6 text-right font-black text-sm text-zinc-800 italic" },
+                                            `R$ ${Number(t.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                                        ),
+                                        h("td", { className: "px-6 py-6 text-right" },
+                                            h("button", { onClick: async () => { if(confirm("Excluir?")) { await _supabase.from("financeiro").delete().eq("id", t.id); loadFinanceiro2Data(); fetchFinanceiroData(); } }, className: "text-zinc-200 hover:text-rose-500 opacity-0 group-hover:opacity-100 cursor-pointer" }, "Excluir")
+                                        )
+                                    ))
+                                )
+                            )
+                        )
+                    ) : currentTab === "servicos" ? h(ServicosPage, {
+                        servicosDb: servicosDb || [],
+                        onSave: handleSaveServico,
+                        onDelete: handleDeleteServico,
+                        onOpenModal: openServicoModal
+                    }) : currentTab === "insights" ? h(BusinessInsightsPage, {
+                        financas: lancamentosFinanceiros || [],
+                        loading: loadingFinanceiro
+                    }) : h("div", { className: "space-y-8" },
                         h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
                             h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
                                 h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
@@ -1156,6 +1695,62 @@
                             onClick: () => setIsConfigModalOpen(false),
                             className: "w-full bg-[#bf953f] text-black font-black py-4 rounded-2xl uppercase text-[11px] tracking-[0.2em] hover:bg-zinc-900 hover:text-white transition-all shadow-xl cursor-pointer"
                         }, "Concluir")
+                    )
+                ),
+
+                isServicoModalOpen && h("div", { className: "fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" },
+                    h("div", { className: "bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-[#bf953f] relative" },
+                        h("button", { 
+                            onClick: () => { setIsServicoModalOpen(false); setServicoEditando(null); }, 
+                            className: "absolute top-6 right-6 p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all cursor-pointer font-bold" 
+                        }, "✕"),
+                        h("div", { className: "p-8 space-y-6" },
+                            h("h2", { className: "text-2xl font-black italic uppercase tracking-tighter text-black" }, 
+                                servicoEditando ? "Editar " : "Novo ", 
+                                h("span", { className: "text-[#bf953f]" }, "Serviço")
+                            ),
+                            h("form", { onSubmit: handleSaveServico, className: "space-y-4" },
+                                h("div", { className: "space-y-1" },
+                                    h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Nome do Serviço"),
+                                    h("input", { 
+                                        type: "text", 
+                                        required: true,
+                                        className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", 
+                                        placeholder: "EX: ESMALTAÇÃO EM GEL", 
+                                        value: formServico.nome, 
+                                        onChange: (e) => setFormServico({...formServico, nome: e.target.value.toUpperCase()}) 
+                                    })
+                                ),
+                                h("div", { className: "grid grid-cols-2 gap-3" },
+                                    h("div", { className: "space-y-1" },
+                                        h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Preço (R$)"),
+                                        h("input", { 
+                                            type: "text", 
+                                            required: true,
+                                            className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", 
+                                            placeholder: "0,00", 
+                                            value: formServico.preco, 
+                                            onChange: (e) => setFormServico({...formServico, preco: e.target.value.replace(/[^0-9,.]/g, "")}) 
+                                        })
+                                    ),
+                                    h("div", { className: "space-y-1" },
+                                        h("label", { className: "text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2" }, "Duração (min)"),
+                                        h("input", { 
+                                            type: "number", 
+                                            min: "0",
+                                            className: "w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-[10px] font-black focus:border-[#bf953f]", 
+                                            placeholder: "40", 
+                                            value: formServico.duracao, 
+                                            onChange: (e) => setFormServico({...formServico, duracao: e.target.value}) 
+                                        })
+                                    )
+                                ),
+                                h("button", { 
+                                    type: "submit", 
+                                    className: "w-full py-5 gold-bg text-black font-black uppercase text-[11px] tracking-[0.2em] rounded-2xl shadow-xl cursor-pointer" 
+                                }, servicoEditando ? "Salvar Alterações" : "Cadastrar Serviço")
+                            )
+                        )
                     )
                 ),
 
