@@ -19,13 +19,6 @@
         .gold-text { color: #bf953f; }
         .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #bf953f; border-radius: 10px; }
-        @keyframes shimmer {
-            0% { transform: translateX(-150%) skewX(-45deg); }
-            100% { transform: translateX(250%) skewX(-45deg); }
-        }
-        .animate-shimmer {
-            animation: shimmer 1.8s infinite;
-        }
     </style>
 </head>
 <body>
@@ -924,7 +917,7 @@
                     ) : h("div", { className: "space-y-8" },
                         h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
                             h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
-                                h("1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
+                                h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
                                 h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
                             ),
                             h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
