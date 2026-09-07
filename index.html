@@ -19,6 +19,13 @@
         .gold-text { color: #bf953f; }
         .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #bf953f; border-radius: 10px; }
+        @keyframes shimmer {
+            0% { transform: translateX(-150%) skewX(-45deg); }
+            100% { transform: translateX(250%) skewX(-45deg); }
+        }
+        .animate-shimmer {
+            animation: shimmer 1.8s infinite;
+        }
     </style>
 </head>
 <body>
@@ -45,23 +52,73 @@
         ];
 
         const LoginPortal = ({ onLogin }) => {
-            const [pass, setPass] = useState("");
-            const handleLogin = () => pass === "1234" ? onLogin() : alert("Senha Incorreta");
-            return h("div", { className: "min-h-screen flex items-center justify-center bg-[#f8f8f8] p-4" },
-                h("div", { className: "bg-white p-10 rounded-[2.5rem] border border-zinc-200 w-full max-w-md text-center shadow-xl" },
-                    h("div", { className: "mb-6 flex justify-center" },
-                        h("img", { src: "logo.png", alt: "Logo", className: "w-24 h-24 object-contain" })
-                    ),
-                    h("h2", { className: "text-zinc-900 font-black italic uppercase text-3xl mb-2 tracking-tighter" }, "Rivi Silva"),
-                    h("input", { 
-                        type: "password", 
-                        placeholder: "DIGITE A SENHA", 
-                        className: "w-full p-5 bg-zinc-50 border border-zinc-200 rounded-2xl text-zinc-900 text-center mb-6 outline-none focus:border-[#bf953f]", 
-                        value: pass, 
-                        onChange: (e) => setPass(e.target.value), 
-                        onKeyPress: (e) => e.key === 'Enter' && handleLogin() 
-                    }),
-                    h("button", { onClick: handleLogin, className: "w-full py-5 gold-bg text-black font-black uppercase text-xs tracking-widest rounded-2xl shadow-md cursor-pointer" }, "Entrar")
+            const [email, setEmail] = useState("");
+            const [password, setPassword] = useState("");
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (email.trim() === "admin" && password === "1234") {
+                    onLogin();
+                } else {
+                    alert("Credenciais inválidas!");
+                }
+            };
+
+            return h("div", {
+                className: "relative min-h-screen w-full bg-white bg-cover bg-center bg-no-repeat flex items-center justify-center md:justify-end overflow-hidden",
+                style: { backgroundImage: `url('foto_perfil(1).jpg')` }
+            },
+                h("div", { className: "absolute inset-0 bg-white/10" }),
+                h("div", { className: "relative z-10 w-full max-w-xl px-8 md:mr-12 lg:mr-24 transition-all duration-500" },
+                    h("div", { className: "bg-white rounded-[50px] shadow-[0_40px_100px_rgba(0,0,0,0.25)] p-10 md:p-12 border border-white/20" },
+                        h("div", { className: "flex justify-center mb-6 transition-transform hover:scale-105 duration-700" },
+                            h("img", { src: "logo.png", alt: "Logo Rivi Silva", className: "w-64 md:w-80 h-auto object-contain" })
+                        ),
+                        h("form", { onSubmit: handleSubmit, className: "grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4" },
+                            h("div", { className: "group md:col-span-1" },
+                                h("label", { className: "block text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1.5 ml-1" }, "Identificação"),
+                                h("div", { className: "relative" },
+                                    h("input", {
+                                        type: "text",
+                                        value: email,
+                                        onChange: (e) => setEmail(e.target.value),
+                                        placeholder: "Usuário ou E-mail",
+                                        className: "w-full px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/10 transition-all text-sm",
+                                        required: true
+                                    }),
+                                    h("span", { className: "absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 text-xs font-bold" }, "✉")
+                                )
+                            ),
+                            h("div", { className: "group md:col-span-1" },
+                                h("label", { className: "block text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mb-1.5 ml-1" }, "Senha"),
+                                h("div", { className: "relative" },
+                                    h("input", {
+                                        type: "password",
+                                        value: password,
+                                        onChange: (e) => setPassword(e.target.value),
+                                        placeholder: "••••••••",
+                                        className: "w-full px-5 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl text-gray-800 placeholder-gray-300 focus:outline-none focus:border-[#d4af37] focus:ring-4 focus:ring-[#d4af37]/10 transition-all text-sm",
+                                        required: true
+                                    }),
+                                    h("span", { className: "absolute right-5 top-1/2 -translate-y-1/2 text-gray-300 text-xs font-bold" }, "🔒")
+                                )
+                            ),
+                            h("div", { className: "md:col-span-2 mt-2" },
+                                h("button", {
+                                    type: "submit",
+                                    className: "relative w-full py-4 rounded-2xl text-white font-bold uppercase tracking-[0.4em] text-[10px] shadow-xl overflow-hidden group cursor-pointer",
+                                    style: { background: "linear-gradient(90deg, #bf953f 0%, #fcf6ba 50%, #b38728 100%)" }
+                                },
+                                    h("div", { className: "absolute inset-0 w-full h-full bg-white/20 -skew-x-[45deg] -translate-x-full animate-shimmer" }),
+                                    h("span", { className: "relative flex items-center justify-center gap-2 text-black font-black" }, "ENTRAR NO PAINEL ✨")
+                                )
+                            )
+                        ),
+                        h("div", { className: "mt-8 pt-6 border-t border-gray-50 flex justify-between items-center opacity-40" },
+                            h("p", { className: "text-[8px] text-gray-400 font-black uppercase tracking-[0.4em]" }, "Rivi Silva • Nail Designer"),
+                            h("p", { className: "text-[8px] text-gray-400 font-black uppercase tracking-[0.4em]" }, "Gestão Premium")
+                        )
+                    )
                 )
             );
         };
@@ -867,7 +924,7 @@
                     ) : h("div", { className: "space-y-8" },
                         h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
                             h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
-                                h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
+                                h("1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
                                 h("p", { className: "text-zinc-500 font-medium text-lg mt-1" }, "Controle de Horários e Meses.")
                             ),
                             h("div", { className: "flex flex-wrap gap-6 items-center justify-center" },
