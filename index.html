@@ -19,6 +19,20 @@
         .gold-text { color: #bf953f; }
         .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #bf953f; border-radius: 10px; }
+
+        /* Premiações / Roleta */
+        @keyframes led-blink {
+            0%, 100% { opacity: 0.3; transform: scale(0.9); filter: drop-shadow(0 0 2px rgba(191, 149, 63, 0.3)); }
+            50% { opacity: 1; transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(191, 149, 63, 0.8)); }
+        }
+        .led-dot { animation: led-blink 1.2s infinite ease-in-out; }
+        .led-dot-spinning { animation: led-blink 0.12s infinite ease-in-out !important; }
+        .glass-card-prem {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+        }
     </style>
 </head>
 <body>
@@ -325,6 +339,419 @@
                         h("div", { className: "text-[10px] font-black uppercase tracking-widest text-zinc-400" },
                             `${stats.totalLancamentos} lançamentos • ${stats.clientesUnicos} clientes`
                         )
+                    )
+                )
+            );
+        };
+
+        // ===================== PÁGINA PREMIAÇÕES (ROLETA) =====================
+        const PremiacoesPage = () => {
+            const [historico, setHistorico] = useState([]);
+            const [telefonesMap, setTelefonesMap] = useState({});
+            const [loading, setLoading] = useState(true);
+            const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+            const [mesSelecionado, setMesSelecionado] = useState("TODOS");
+            const [corteRanking, setCorteRanking] = useState(5);
+            const [termoBusca, setTermoBusca] = useState("");
+            const [presentes, setPresentes] = useState(["Vale Brinde Master", "Consultoria 1h", "Crédito Rivi 15%"]);
+            const [novoPresente, setNovoPresente] = useState("");
+            const [girando, setGirando] = useState(false);
+            const [anguloAtual, setAnguloAtual] = useState(0);
+            const [vencedor, setVencedor] = useState(null);
+            const [modalHistorico, setModalHistorico] = useState(null);
+            const canvasRef = React.useRef(null);
+            const anguloRef = React.useRef(0);
+
+            const normalizarNome = (nome) => {
+                if (!nome) return "";
+                return nome.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+            };
+
+            useEffect(() => {
+                (async () => {
+                    setLoading(true);
+                    try {
+                        const { data } = await _supabase.from("financeiro").select("*").eq("tipo", "entrada").order("data", { ascending: false });
+                        setHistorico(data || []);
+
+                        const { data: ags } = await _supabase.from("agendamentos").select("cliente_nome, telefone").order("id", { ascending: false });
+                        if (ags) {
+                            const mapa = {};
+                            ags.forEach(a => {
+                                const n = normalizarNome(a.cliente_nome);
+                                if (n && a.telefone && String(a.telefone).trim() && !mapa[n]) {
+                                    mapa[n] = String(a.telefone).trim();
+                                }
+                            });
+                            setTelefonesMap(mapa);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        setLoading(false);
+                    }
+                })();
+            }, []);
+
+            const obterClientesElegiveis = () => {
+                const dadosFiltrados = historico.filter(item => {
+                    if (!item.data) return false;
+                    const [ano, mes] = item.data.split('-');
+                    const bateAno = Number(ano) === Number(anoSelecionado);
+                    const bateMes = mesSelecionado === "TODOS" || Number(mes) === Number(mesSelecionado);
+                    return bateAno && bateMes && item.cliente;
+                });
+
+                const clientes = {};
+                dadosFiltrados.forEach(item => {
+                    const nomeOriginal = (item.cliente || "").trim().toUpperCase();
+                    const nomeNorm = normalizarNome(item.cliente);
+                    if (!clientes[nomeOriginal]) {
+                        const telAg = telefonesMap[nomeNorm] || null;
+                        const telFin = item.telefone || item.phone || item.whatsapp || null;
+                        clientes[nomeOriginal] = {
+                            nome: nomeOriginal,
+                            telefone: telAg || telFin || "Não informado",
+                            totalServicos: 0,
+                            valorTotal: 0,
+                            registros: []
+                        };
+                    }
+                    clientes[nomeOriginal].totalServicos += 1;
+                    clientes[nomeOriginal].valorTotal += Number(item.valor || 0);
+                    clientes[nomeOriginal].registros.push(item);
+                    if (clientes[nomeOriginal].telefone === "Não informado") {
+                        const telAg = telefonesMap[nomeNorm];
+                        if (telAg) clientes[nomeOriginal].telefone = telAg;
+                    }
+                });
+
+                let lista = Object.values(clientes).sort((a, b) => b.totalServicos - a.totalServicos || b.valorTotal - a.valorTotal);
+                if (termoBusca) {
+                    const t = termoBusca.toLowerCase();
+                    lista = lista.filter(p => p.nome.toLowerCase().includes(t) || (p.telefone && p.telefone.toLowerCase().includes(t)));
+                }
+                return lista.slice(0, corteRanking);
+            };
+
+            const desenharRoleta = (ctx, participantes, anguloGraus) => {
+                const width = ctx.canvas.width;
+                const height = ctx.canvas.height;
+                const raio = width / 2 - 8;
+                ctx.clearRect(0, 0, width, height);
+                ctx.save();
+                ctx.translate(width / 2, height / 2);
+                ctx.rotate((anguloGraus * Math.PI) / 180);
+
+                const total = participantes.length || 1;
+                const arco = (2 * Math.PI) / total;
+                const cores = ['#f4f4f5', '#e4e4e7', '#f4f4f5', '#ededef'];
+
+                participantes.forEach((p, i) => {
+                    const anguloInicio = i * arco;
+                    const anguloFim = (i + 1) * arco;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.arc(0, 0, raio, anguloInicio, anguloFim);
+                    ctx.closePath();
+                    ctx.fillStyle = cores[i % cores.length];
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(191, 149, 63, 0.25)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.rotate(anguloInicio + arco / 2);
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#27272a';
+                    ctx.font = '600 11px Montserrat, sans-serif';
+                    const nomeCurto = p.nome.length > 14 ? p.nome.substring(0, 12) + '..' : p.nome;
+                    ctx.fillText(nomeCurto, raio - 30, 4);
+                    ctx.restore();
+                });
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 26, 0, 2 * Math.PI);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#bf953f';
+                ctx.stroke();
+                ctx.restore();
+            };
+
+            useEffect(() => {
+                const participantes = obterClientesElegiveis();
+                const canvas = canvasRef.current;
+                if (canvas && participantes.length > 0) {
+                    const ctx = canvas.getContext('2d');
+                    desenharRoleta(ctx, participantes, anguloAtual);
+                }
+            }, [historico, telefonesMap, anoSelecionado, mesSelecionado, corteRanking, termoBusca, anguloAtual, loading]);
+
+            const girarRoleta = () => {
+                const participantes = obterClientesElegiveis();
+                if (participantes.length === 0) return alert("Não há participantes elegíveis.");
+                if (presentes.length === 0) return alert("Adicione pelo menos um prêmio.");
+                if (girando) return;
+
+                setGirando(true);
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const total = participantes.length;
+                const indiceVencedor = Math.floor(Math.random() * total);
+                const clienteVencedor = participantes[indiceVencedor];
+                const presenteSorteado = presentes[Math.floor(Math.random() * presentes.length)];
+
+                const voltasExtras = 6;
+                const anguloPorItem = 360 / total;
+                const anguloCentroFatia = indiceVencedor * anguloPorItem + anguloPorItem / 2;
+                const anguloInicio = anguloRef.current;
+                const anguloFinal = anguloInicio + (360 * voltasExtras) + ((270 - anguloCentroFatia - (anguloInicio % 360)) % 360);
+
+                let inicioTempo = null;
+                const duracao = 4500;
+
+                const animar = (tempo) => {
+                    if (!inicioTempo) inicioTempo = tempo;
+                    let progresso = (tempo - inicioTempo) / duracao;
+                    if (progresso > 1) progresso = 1;
+                    const ease = 1 - Math.pow(1 - progresso, 3);
+                    const angulo = anguloInicio + (anguloFinal - anguloInicio) * ease;
+                    anguloRef.current = angulo;
+                    setAnguloAtual(angulo);
+                    desenharRoleta(ctx, participantes, angulo);
+
+                    if (progresso < 1) {
+                        requestAnimationFrame(animar);
+                    } else {
+                        setGirando(false);
+                        anguloRef.current = anguloFinal % 360;
+                        setAnguloAtual(anguloFinal % 360);
+                        setVencedor({ nome: clienteVencedor.nome, telefone: clienteVencedor.telefone, premio: presenteSorteado });
+                    }
+                };
+                requestAnimationFrame(animar);
+            };
+
+            const adicionarPresente = (e) => {
+                e.preventDefault();
+                if (!novoPresente.trim()) return;
+                setPresentes([...presentes, novoPresente.trim().toUpperCase()]);
+                setNovoPresente("");
+            };
+
+            const participantes = obterClientesElegiveis();
+            const textoPeriodo = mesSelecionado === "TODOS" ? `Exercício ${anoSelecionado}` : `${MESES[mesSelecionado - 1]} / ${anoSelecionado}`;
+
+            if (loading) {
+                return h("div", { className: "h-96 flex flex-col items-center justify-center gap-4" },
+                    h("div", { className: "w-8 h-8 rounded-full border-2 border-[#bf953f] border-t-transparent animate-spin" }),
+                    h("p", { className: "text-[11px] font-bold uppercase tracking-[0.4em] text-[#bf953f]" }, "Carregando Premiações...")
+                );
+            }
+
+            // LEDs
+            const leds = [];
+            for (let i = 0; i < 20; i++) {
+                const angulo = (i * 360) / 20;
+                const rad = (angulo * Math.PI) / 180;
+                const x = 195 + 186 * Math.cos(rad) - 5;
+                const y = 195 + 186 * Math.sin(rad) - 5;
+                leds.push(h("div", {
+                    key: i,
+                    className: `absolute w-2.5 h-2.5 rounded-full bg-[#bf953f] led-dot ${girando ? 'led-dot-spinning' : ''}`,
+                    style: { left: x + "px", top: y + "px", animationDelay: (i * 0.05) + "s" }
+                }));
+            }
+
+            return h("div", { className: "w-full space-y-8" },
+                // Header
+                h("header", { className: "glass-card-prem p-6 md:p-8 rounded-[32px] flex flex-col md:flex-row justify-between items-start md:items-center gap-6" },
+                    h("div", null,
+                        h("div", { className: "inline-flex items-center gap-2 bg-[#bf953f]/10 border border-[#bf953f]/20 px-3 py-1 rounded-full mb-2" },
+                            h("span", { className: "w-1.5 h-1.5 rounded-full bg-[#bf953f] animate-pulse" }),
+                            h("span", { className: "text-[9px] font-black text-[#bf953f] uppercase tracking-[0.3em]" }, "Ambiente Seguro")
+                        ),
+                        h("h1", { className: "text-3xl md:text-4xl font-black tracking-tight text-black" },
+                            "RIVI ", h("span", { className: "text-[#bf953f]" }, "PREMIAÇÕES 🚀")
+                        )
+                    ),
+                    h("div", { className: "flex flex-wrap items-center gap-3 bg-zinc-100 p-2 rounded-2xl border border-zinc-200" },
+                        h("select", {
+                            value: mesSelecionado,
+                            onChange: e => setMesSelecionado(e.target.value === "TODOS" ? "TODOS" : Number(e.target.value)),
+                            className: "bg-white border border-zinc-200 text-zinc-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase outline-none cursor-pointer"
+                        },
+                            h("option", { value: "TODOS" }, "TODOS OS MESES"),
+                            MESES.map((m, i) => h("option", { key: i, value: i + 1 }, m.toUpperCase()))
+                        ),
+                        h("select", {
+                            value: anoSelecionado,
+                            onChange: e => setAnoSelecionado(Number(e.target.value)),
+                            className: "bg-white border border-zinc-200 text-zinc-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase outline-none cursor-pointer"
+                        },
+                            [2024, 2025, 2026, 2027].map(a => h("option", { key: a, value: a }, a))
+                        )
+                    )
+                ),
+
+                h("div", { className: "grid grid-cols-1 lg:grid-cols-12 gap-8" },
+                    // Coluna esquerda
+                    h("div", { className: "lg:col-span-5 space-y-6" },
+                        // Ranking
+                        h("div", { className: "glass-card-prem p-6 md:p-8 rounded-[32px] space-y-5" },
+                            h("div", { className: "flex items-center justify-between" },
+                                h("h3", { className: "text-xs font-black uppercase tracking-[0.2em] text-zinc-500" }, "Ranking de Elegíveis"),
+                                h("span", { className: "text-[10px] font-bold text-[#bf953f] uppercase" }, textoPeriodo)
+                            ),
+                            h("input", {
+                                type: "text",
+                                value: termoBusca,
+                                onChange: e => setTermoBusca(e.target.value),
+                                placeholder: "🔍 PESQUISAR CLIENTE OU TELEFONE...",
+                                className: "w-full bg-white border border-zinc-200 px-4 py-3 rounded-xl font-bold text-xs uppercase outline-none focus:border-[#bf953f]"
+                            }),
+                            h("div", { className: "flex gap-2 p-1 bg-zinc-100 rounded-2xl border border-zinc-200" },
+                                h("button", {
+                                    onClick: () => setCorteRanking(5),
+                                    className: `flex-1 py-2.5 rounded-xl font-black text-xs uppercase cursor-pointer ${corteRanking === 5 ? 'bg-[#bf953f] text-white' : 'text-zinc-500'}`
+                                }, "Top 5"),
+                                h("button", {
+                                    onClick: () => setCorteRanking(10),
+                                    className: `flex-1 py-2.5 rounded-xl font-black text-xs uppercase cursor-pointer ${corteRanking === 10 ? 'bg-[#bf953f] text-white' : 'text-zinc-500'}`
+                                }, "Top 10")
+                            ),
+                            h("div", { className: "space-y-2.5 max-h-48 overflow-y-auto custom-scroll" },
+                                participantes.length === 0
+                                    ? h("p", { className: "text-xs text-zinc-400 text-center py-6 uppercase" }, "Nenhum cliente elegível")
+                                    : participantes.map((p, i) =>
+                                        h("div", {
+                                            key: p.nome,
+                                            onClick: () => setModalHistorico(p),
+                                            className: "flex items-center justify-between bg-white px-4 py-3 rounded-2xl border border-zinc-200 shadow-sm hover:border-[#bf953f] cursor-pointer transition-all"
+                                        },
+                                            h("div", { className: "flex items-center gap-3" },
+                                                h("span", { className: "w-6 h-6 rounded-lg bg-zinc-100 text-[#bf953f] flex items-center justify-center font-black text-[10px]" }, `#${i + 1}`),
+                                                h("div", null,
+                                                    h("span", { className: "text-xs font-bold uppercase text-zinc-700 block" }, p.nome),
+                                                    h("span", { className: "text-[9px] font-semibold text-zinc-400 block" }, p.telefone)
+                                                )
+                                            ),
+                                            h("span", { className: "text-[10px] font-extrabold text-[#bf953f] bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200" }, `${p.totalServicos} Atend.`)
+                                        )
+                                    )
+                            )
+                        ),
+
+                        // Prêmios
+                        h("div", { className: "glass-card-prem p-6 md:p-8 rounded-[32px] space-y-5" },
+                            h("h3", { className: "text-xs font-black uppercase tracking-[0.2em] text-zinc-500" }, "Premiações Ativas"),
+                            h("form", { onSubmit: adicionarPresente, className: "flex gap-2" },
+                                h("input", {
+                                    type: "text",
+                                    value: novoPresente,
+                                    onChange: e => setNovoPresente(e.target.value),
+                                    placeholder: "NOVO PRÊMIO...",
+                                    className: "flex-1 bg-white border border-zinc-200 px-4 py-3 rounded-xl font-bold text-xs uppercase outline-none focus:border-[#bf953f]"
+                                }),
+                                h("button", { type: "submit", className: "bg-zinc-200 hover:bg-[#bf953f] hover:text-white text-zinc-700 px-5 py-3 rounded-xl font-black text-xs uppercase cursor-pointer transition-all" }, "Adicionar")
+                            ),
+                            h("div", { className: "space-y-2 max-h-40 overflow-y-auto custom-scroll" },
+                                presentes.map((pres, i) =>
+                                    h("div", { key: i, className: "flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-zinc-200" },
+                                        h("span", { className: "text-xs font-semibold uppercase text-zinc-600" }, pres),
+                                        h("button", {
+                                            onClick: () => setPresentes(presentes.filter((_, idx) => idx !== i)),
+                                            className: "text-zinc-400 hover:text-red-500 font-bold text-xs cursor-pointer"
+                                        }, "Remover")
+                                    )
+                                )
+                            )
+                        )
+                    ),
+
+                    // Roleta
+                    h("div", { className: "lg:col-span-7 glass-card-prem p-8 md:p-12 rounded-[32px] flex flex-col items-center justify-center relative min-h-[520px]" },
+                        h("div", { className: "absolute top-6 left-8" },
+                            h("h3", { className: "text-xs font-black uppercase tracking-[0.2em] text-zinc-500" }, "Palco do Sorteio")
+                        ),
+                        h("div", { className: "relative my-10 w-[390px] h-[390px] flex items-center justify-center" },
+                            h("div", { className: "absolute inset-0 pointer-events-none" }, ...leds),
+                            h("div", { className: "absolute -top-3 left-1/2 -translate-x-1/2 z-30 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[22px] border-t-[#bf953f]" }),
+                            h("canvas", {
+                                ref: canvasRef,
+                                width: 350,
+                                height: 350,
+                                className: "rounded-full shadow-xl border-[6px] border-white z-20"
+                            })
+                        ),
+                        h("button", {
+                            onClick: girarRoleta,
+                            disabled: girando || participantes.length === 0,
+                            className: "w-full max-w-md py-4 rounded-2xl font-black text-xs uppercase tracking-[0.3em] text-white shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer",
+                            style: { background: "linear-gradient(to right, #bf953f, #a67c00)" }
+                        }, girando ? "Sorteando..." : "Girar Roleta da Sorte")
+                    )
+                ),
+
+                // Modal Vencedor
+                vencedor && h("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4" },
+                    h("div", { className: "bg-white rounded-[32px] max-w-lg w-full p-8 md:p-10 text-center shadow-2xl space-y-6 border border-zinc-200" },
+                        h("div", { className: "w-20 h-20 bg-[#bf953f]/15 rounded-2xl flex items-center justify-center mx-auto text-3xl border border-[#bf953f]/30" }, "🏆"),
+                        h("div", { className: "space-y-2" },
+                            h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.4em]" }, "Gran Finale • Sorteio Realizado"),
+                            h("h3", { className: "text-3xl font-extrabold uppercase text-zinc-900" }, vencedor.nome),
+                            h("p", { className: "text-xs font-semibold text-zinc-500" }, `Contato: ${vencedor.telefone}`),
+                            h("div", { className: "inline-flex items-center gap-2 bg-zinc-100 px-4 py-2 rounded-xl border border-zinc-200 mt-3" },
+                                h("span", { className: "text-xs text-zinc-500 uppercase" }, "Prêmio:"),
+                                h("span", { className: "text-xs font-bold text-[#bf953f] uppercase" }, vencedor.premio)
+                            )
+                        ),
+                        h("button", {
+                            onClick: () => setVencedor(null),
+                            className: "w-full py-4 rounded-xl font-extrabold text-xs uppercase tracking-[0.2em] text-white cursor-pointer",
+                            style: { background: "linear-gradient(to right, #bf953f, #a67c00)" }
+                        }, "Concluir & Continuar")
+                    )
+                ),
+
+                // Modal Histórico
+                modalHistorico && h("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-md z-50 flex items-center justify-center p-4" },
+                    h("div", { className: "bg-white rounded-[32px] max-w-2xl w-full p-6 md:p-8 shadow-2xl space-y-6 border border-zinc-200" },
+                        h("div", { className: "flex items-center justify-between border-b border-zinc-200 pb-4" },
+                            h("div", null,
+                                h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase tracking-[0.3em]" }, "Auditoria de Relacionamento"),
+                                h("h3", { className: "text-xl font-extrabold uppercase text-zinc-900" }, modalHistorico.nome)
+                            ),
+                            h("button", { onClick: () => setModalHistorico(null), className: "w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-bold cursor-pointer" }, "✕")
+                        ),
+                        h("div", { className: "bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center justify-between" },
+                            h("div", null,
+                                h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase block" }, "Contato Telefônico"),
+                                h("span", { className: "text-xs font-bold text-zinc-800" }, modalHistorico.telefone)
+                            ),
+                            h("div", { className: "text-right" },
+                                h("span", { className: "text-[10px] font-black text-[#bf953f] uppercase block" }, "Volume Total"),
+                                h("span", { className: "text-xs font-bold text-zinc-800" }, `R$ ${modalHistorico.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                            )
+                        ),
+                        h("div", { className: "space-y-2 max-h-[50vh] overflow-y-auto custom-scroll" },
+                            (modalHistorico.registros || []).sort((a, b) => new Date(b.data) - new Date(a.data)).map((reg, idx) =>
+                                h("div", { key: idx, className: "bg-white p-3.5 rounded-xl border border-zinc-200 flex items-center justify-between" },
+                                    h("div", null,
+                                        h("span", { className: "text-[10px] font-bold text-zinc-400 block" }, reg.data ? reg.data.split('-').reverse().join('/') : "-"),
+                                        h("span", { className: "text-xs font-extrabold text-zinc-700 uppercase" }, reg.servico || reg.item || "Serviço")
+                                    ),
+                                    h("span", { className: "text-xs font-black text-[#bf953f]" }, `R$ ${Number(reg.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`)
+                                )
+                            )
+                        ),
+                        h("button", {
+                            onClick: () => setModalHistorico(null),
+                            className: "w-full bg-zinc-100 text-zinc-700 py-3 rounded-xl font-bold text-xs uppercase cursor-pointer"
+                        }, "Fechar")
                     )
                 )
             );
@@ -993,6 +1420,10 @@
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "insights" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
                                 }, "Insights"),
                                 h("button", { 
+                                    onClick: () => setCurrentTab("premiacoes"), 
+                                    className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "premiacoes" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
+                                }, "Premiações"),
+                                h("button", { 
                                     onClick: () => setCurrentTab("agenda_config"), 
                                     className: `px-4 py-2 rounded-lg font-black uppercase text-[10px] tracking-wider transition-all ${currentTab === "agenda_config" ? "bg-white text-black shadow-sm" : "text-gray-400 hover:text-black"}` 
                                 }, "Configurar Agenda")
@@ -1453,7 +1884,8 @@
                     }) : currentTab === "insights" ? h(BusinessInsightsPage, {
                         financas: lancamentosFinanceiros || [],
                         loading: loadingFinanceiro
-                    }) : h("div", { className: "space-y-8" },
+                    }) : currentTab === "premiacoes" ? h(PremiacoesPage)
+                    : h("div", { className: "space-y-8" },
                         h("div", { className: "bg-white border border-zinc-200 p-8 rounded-[3rem] shadow-sm flex flex-col xl:flex-row justify-between items-center gap-10" },
                             h("div", { className: "flex flex-col min-w-fit text-center xl:text-left" },
                                 h("h1", { className: "text-4xl font-black text-zinc-900" }, "Gestão ", h("span", { className: "text-[#bf953f]" }, "Rivi Silva")),
